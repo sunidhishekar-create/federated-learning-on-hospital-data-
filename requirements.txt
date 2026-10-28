@@ -1,0 +1,10 @@
+pandas
+numpy
+scikit-learn
+torch
+pyyaml
+matplotlib
+seaborn
+jupyter
+ipykernel
+flwr[simulation]

@@ -1,0 +1,45 @@
+seed: 42
+
+paths:
+  raw_data: data/raw/diabetic_data.csv
+  processed_dir: data/processed
+  results_dir: results
+  checkpoints_dir: results/checkpoints
+
+data:
+  id_columns: [encounter_id, patient_nbr]   # dropped from features
+  group_column: patient_nbr                 # split by patient so none appear in both train and test
+  target_source: readmitted
+  positive_label: "<30"                     # 1 = readmitted within 30 days, else 0
+  missing_marker: "?"
+  test_size: 0.20                           # global held-out test set
+  val_size: 0.10                            # taken from the remaining train data
+
+hospitals:
+  num_hospitals: 5
+  skew:
+    feature_column: age                     # real column used to create feature skew
+    dirichlet_alpha: 0.5                    # lower = more label/feature skew
+    quantity_skew: true                     # hospitals get different sizes
+
+model:
+  type: mlp
+  hidden_dims: [64, 32]
+  dropout: 0.2
+
+training:                                   # shared by centralized AND federated
+  batch_size: 64
+  learning_rate: 0.001
+  optimizer: adam
+  threshold: 0.5                            # decision threshold for precision/recall/F1
+  use_class_weights: true                   # handles the imbalance (~11% positives)
+
+centralized:
+  epochs: 20
+
+federated:                                  # teammate owns this section
+  num_rounds: 20
+  local_epochs: 1
+  fraction_fit: 1.0
+  min_available_clients: 5
+  strategy: fedavg

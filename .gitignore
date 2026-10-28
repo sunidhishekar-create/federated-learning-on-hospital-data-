@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+
+# Data (keep the folders, not the files)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Model files and large outputs
+*.pt
+*.pth
+results/checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
