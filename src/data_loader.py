@@ -123,10 +123,9 @@ def prepare_pool_and_test(cfg=None) -> dict:
 
 # ---------------------------------------------------------------- interface for teammate
 def load_hospital_data(hospital_id: int):
-    """Returns (X_train, y_train, X_val, y_val) as numpy arrays.
-    Implemented after partition.py exists."""
-    raise NotImplementedError
-
+    """Returns (X_train, y_train, X_val, y_val) as numpy arrays for one hospital."""
+    d = np.load(_processed_dir() / f"hospital_{hospital_id}.npz")
+    return d["X_train"], d["y_train"], d["X_val"], d["y_val"]
 
 def load_global_test():
     """Returns (X_test, y_test) as numpy arrays."""
