@@ -35,7 +35,7 @@ training:                                   # shared by centralized AND federate
   use_class_weights: true                   # handles the imbalance (~11% positives)
 
 centralized:
-  epochs: 20
+  epochs: 8
 
 federated:                                  # teammate owns this section
   num_rounds: 20
