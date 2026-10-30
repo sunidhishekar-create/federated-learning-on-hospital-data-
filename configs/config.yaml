@@ -19,7 +19,7 @@ hospitals:
   num_hospitals: 5
   skew:
     feature_column: age                     # real column used to create feature skew
-    dirichlet_alpha: 0.5                    # lower = more label/feature skew
+    dirichlet_alpha: 1.0                  # lower = more label/feature skew
     quantity_skew: true                     # hospitals get different sizes
 
 model:

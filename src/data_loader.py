@@ -1,6 +1,13 @@
+import json
 from pathlib import Path
+
+import joblib
+import numpy as np
 import pandas as pd
 import yaml
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 ROOT = Path(__file__).resolve().parents[1]
 AGE_MAP = {f"[{a}-{a+10})": a + 5 for a in range(0, 100, 10)}
@@ -8,12 +15,21 @@ EXCLUDE_DISCHARGE = [11, 13, 14, 19, 20, 21]   # expired / hospice
 CATEGORY_CODES = ["admission_type_id", "discharge_disposition_id", "admission_source_id"]
 
 
+# ---------------------------------------------------------------- config
 def load_config(path=None) -> dict:
     path = Path(path) if path else ROOT / "configs" / "config.yaml"
     with open(path) as f:
         return yaml.safe_load(f)
 
 
+def _processed_dir(cfg=None) -> Path:
+    cfg = cfg or load_config()
+    p = ROOT / cfg["paths"]["processed_dir"]
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+# ---------------------------------------------------------------- cleaning
 def icd9_group(code) -> str:
     """Collapse an ICD-9 diagnosis code into a broad category."""
     if pd.isna(code):
@@ -40,11 +56,11 @@ def load_and_clean(cfg=None):
     cfg = cfg or load_config()
     d = cfg["data"]
     df = pd.read_csv(
-    ROOT / cfg["paths"]["raw_data"],
-    na_values=[d["missing_marker"]],
-    keep_default_na=False,
-    low_memory=False,
-)
+        ROOT / cfg["paths"]["raw_data"],
+        na_values=[d["missing_marker"]],
+        keep_default_na=False,   # keep "None" as a real category
+        low_memory=False,
+    )
     df = df[~df["discharge_disposition_id"].isin(EXCLUDE_DISCHARGE)]
     df = df[df["gender"] != "Unknown/Invalid"]
 
@@ -65,3 +81,62 @@ def load_and_clean(cfg=None):
     df = df.loc[:, df.nunique() > 1]
 
     return df.reset_index(drop=True), y.reset_index(drop=True), meta.reset_index(drop=True)
+
+
+# ---------------------------------------------------------------- split + encode + save
+def prepare_pool_and_test(cfg=None) -> dict:
+    """Clean -> patient-grouped split -> encode/scale (fit on pool only) -> save.
+    Writes pool.npz, global_test.npz, meta.json, preprocessor.joblib."""
+    cfg = cfg or load_config()
+    X, y, meta = load_and_clean(cfg)
+
+    gss = GroupShuffleSplit(n_splits=1, test_size=cfg["data"]["test_size"],
+                            random_state=cfg["seed"])
+    pool_idx, test_idx = next(gss.split(X, y, groups=meta["patient_nbr"]))
+
+    num_cols = X.select_dtypes("number").columns.tolist()
+    cat_cols = [c for c in X.columns if c not in num_cols]
+    pre = ColumnTransformer([
+        ("num", StandardScaler(), num_cols),
+        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), cat_cols),
+    ])
+    X_pool = pre.fit_transform(X.iloc[pool_idx]).astype("float32")   # fit on pool only
+    X_test = pre.transform(X.iloc[test_idx]).astype("float32")
+
+    out = _processed_dir(cfg)
+    np.savez_compressed(
+        out / "pool.npz", X=X_pool, y=y.iloc[pool_idx].to_numpy(),
+        patient_nbr=meta["patient_nbr"].iloc[pool_idx].to_numpy(),
+        age_group=meta["age_group"].iloc[pool_idx].to_numpy().astype(str))
+    np.savez_compressed(
+        out / "global_test.npz", X=X_test, y=y.iloc[test_idx].to_numpy(),
+        patient_nbr=meta["patient_nbr"].iloc[test_idx].to_numpy())
+    joblib.dump(pre, out / "preprocessor.joblib")
+
+    info = {"input_dim": int(X_pool.shape[1]),
+            "feature_names": pre.get_feature_names_out().tolist(),
+            "num_cols": num_cols, "cat_cols": cat_cols,
+            "n_pool": int(len(pool_idx)), "n_test": int(len(test_idx))}
+    (out / "meta.json").write_text(json.dumps(info, indent=2))
+    return info
+
+
+# ---------------------------------------------------------------- interface for teammate
+def load_hospital_data(hospital_id: int):
+    """Returns (X_train, y_train, X_val, y_val) as numpy arrays for one hospital."""
+    d = np.load(_processed_dir() / f"hospital_{hospital_id}.npz")
+    return d["X_train"], d["y_train"], d["X_val"], d["y_val"]
+
+def load_global_test():
+    """Returns (X_test, y_test) as numpy arrays."""
+    d = np.load(_processed_dir() / "global_test.npz")
+    return d["X"], d["y"]
+
+
+def get_input_dim() -> int:
+    """Number of features after encoding."""
+    return json.loads((_processed_dir() / "meta.json").read_text())["input_dim"]
+
+
+if __name__ == "__main__":
+    print(prepare_pool_and_test())
