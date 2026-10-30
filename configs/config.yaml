@@ -1,4 +1,5 @@
 seed: 42
+eval_seeds: [42, 43, 44, 45, 46]   # used for multi-seed runs, by BOTH centralized and federated
 
 paths:
   raw_data: data/raw/diabetic_data.csv
