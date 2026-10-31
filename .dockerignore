@@ -1,0 +1,9 @@
+# Keep the build context tiny and make sure no patient data can end up in an image.
+.git
+.venv
+data
+results
+notebooks
+**/__pycache__
+*.pt
+docker/flwr_home

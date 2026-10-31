@@ -1,0 +1,7 @@
+# Dependencies the ServerApp / ClientApp need inside the containers (torch is installed separately
+# in the Dockerfile, from the CPU wheel index). Same pins as requirements.txt; flwr is in the base image.
+numpy==2.5.4
+pandas==3.1.0
+scikit-learn==1.9.1
+pyyaml==6.0.3
+joblib==1.6.0

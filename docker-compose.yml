@@ -1,0 +1,116 @@
+# Federated learning across five hospitals, one container each, plus one server container.
+#
+#   docker compose up -d --build        # start server + 5 hospitals
+#   FLWR_HOME=docker/flwr_home flwr run . docker-deployment --stream
+#   docker compose down                 # stop and remove the containers
+#
+# DATA ISOLATION. Each hospital container mounts ONLY its own partition (hospital_<i>.npz),
+# read-only, plus meta.json (feature count and names, no patient rows). It never sees another
+# hospital's file, the pooled data, or the global test set. The server mounts no hospital data:
+# only the global test set (to score the shared model) and meta.json. Every hospital is also on
+# its own private network that only the server joins, so hospitals cannot reach each other.
+# What travels between containers is the model weights (and metric numbers), nothing else.
+# `python docker/run_experiment.py` checks all of this and saves the evidence.
+
+name: hospital-fl
+
+x-hospital: &hospital
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    args:
+      FLWR_ROLE: supernode
+  image: hospital-fl-supernode:1.42.0
+  depends_on:
+    - superlink
+  # Each hospital gets one CPU, like one site's machine. Without this, every PyTorch process
+  # starts one thread per core and the five hospitals fight over the VM's cores (rounds then
+  # take minutes instead of seconds). The thread count is pinned to match the CPU budget.
+  cpus: 1.0
+  environment:
+    OMP_NUM_THREADS: "1"
+    MKL_NUM_THREADS: "1"
+
+services:
+  superlink:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        FLWR_ROLE: superlink
+    image: hospital-fl-superlink:1.42.0
+    # Insecure (no TLS) because everything runs on one machine. The SuperLink starts the
+    # ServerApp itself (isolation "subprocess"), so one container is the whole server side.
+    # Runtime dependency installation is off: the dependencies are already in the image, and
+    # otherwise Flower would try to download them again (including a multi-GB CUDA PyTorch).
+    command: ["--insecure", "--host", "0.0.0.0", "--port", "8000", "--isolation", "subprocess",
+              "--disable-runtime-dependency-installation"]
+    cpus: 2.0
+    environment:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    ports:
+      - "127.0.0.1:9810:8000"          # lets `flwr run` on this machine reach the SuperLink
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/global_test.npz:/app/data/processed/global_test.npz:ro
+      - ./results/docker:/app/results:rw          # the only writable mount: run results
+    networks: [hospital0-net, hospital1-net, hospital2-net, hospital3-net, hospital4-net]
+
+  hospital-0:
+    <<: *hospital
+    command: ["--insecure", "--superlink", "superlink:8000", "--isolation", "subprocess",
+              "--node-config", "partition-id=0 num-partitions=5"]
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/hospital_0.npz:/app/data/processed/hospital_0.npz:ro
+    networks: [hospital0-net]
+
+  hospital-1:
+    <<: *hospital
+    command: ["--insecure", "--superlink", "superlink:8000", "--isolation", "subprocess",
+              "--node-config", "partition-id=1 num-partitions=5"]
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/hospital_1.npz:/app/data/processed/hospital_1.npz:ro
+    networks: [hospital1-net]
+
+  hospital-2:
+    <<: *hospital
+    command: ["--insecure", "--superlink", "superlink:8000", "--isolation", "subprocess",
+              "--node-config", "partition-id=2 num-partitions=5"]
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/hospital_2.npz:/app/data/processed/hospital_2.npz:ro
+    networks: [hospital2-net]
+
+  hospital-3:
+    <<: *hospital
+    command: ["--insecure", "--superlink", "superlink:8000", "--isolation", "subprocess",
+              "--node-config", "partition-id=3 num-partitions=5"]
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/hospital_3.npz:/app/data/processed/hospital_3.npz:ro
+    networks: [hospital3-net]
+
+  hospital-4:
+    <<: *hospital
+    command: ["--insecure", "--superlink", "superlink:8000", "--isolation", "subprocess",
+              "--node-config", "partition-id=4 num-partitions=5"]
+    volumes:
+      - ./configs/config.yaml:/app/configs/config.yaml:ro
+      - ./data/processed/meta.json:/app/data/processed/meta.json:ro
+      - ./data/processed/hospital_4.npz:/app/data/processed/hospital_4.npz:ro
+    networks: [hospital4-net]
+
+networks:
+  hospital0-net: {}
+  hospital1-net: {}
+  hospital2-net: {}
+  hospital3-net: {}
+  hospital4-net: {}

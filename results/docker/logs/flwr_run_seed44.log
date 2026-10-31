@@ -1,0 +1,200 @@
+Flower App configuration warnings in '/Users/sonia/federated-learning-on-hospital-data-/pyproject.toml':
+- Recommended property "license" missing in [project]
+Using SuperLink: docker-deployment (127.0.0.1:9810)
+Successfully started run 1747019142952541312
+[92mINFO [0m:      Start `flwr-serverapp` process
+Successfully installed hospital-fl to /app/.flwr/apps/local.hospital-fl.0.1.0.185bc1a7.
+[92mINFO [0m:      Starting FedAvg strategy:
+[92mINFO [0m:      	├── Number of rounds: 8
+[92mINFO [0m:      	├── ArrayRecord (0.05 MB)
+[92mINFO [0m:      	├── ConfigRecord (train): {'seed': 44, 'local-epochs': 1}
+[92mINFO [0m:      	├── ConfigRecord (evaluate): (empty!)
+[92mINFO [0m:      	├──> Sampling:
+[92mINFO [0m:      	│	├──Fraction: train (1.00) | evaluate ( 1.00)
+[92mINFO [0m:      	│	├──Minimum nodes: train (5) | evaluate (5)
+[92mINFO [0m:      	│	└──Minimum available nodes: 5
+[92mINFO [0m:      	└──> Keys in records:
+[92mINFO [0m:      		├── Weighted by: 'num-examples'
+[92mINFO [0m:      		├── ArrayRecord key: 'arrays'
+[92mINFO [0m:      		└── ConfigRecord key: 'config'
+[92mINFO [0m:      
+[92mINFO [0m:      Initial global evaluation results: {'accuracy': 0.38097405553026853, 'precision': 0.1111111111111111, 'recall': 0.6363636363636364, 'f1': 0.1891891891891892, 'roc_auc': 0.47785956991668205, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1930075952069719}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6342372299253525}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.7427805593486067, 'precision': 0.1932210708117444, 'recall': 0.3988413547237077, 'f1': 0.260325770796975, 'roc_auc': 0.6537967029731937, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1637017479934748}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6433095279433697}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6629241895514085, 'precision': 0.1810705525898139, 'recall': 0.5592691622103387, 'f1': 0.2735694822888283, 'roc_auc': 0.6651127736476218, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1543262777206227}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6448373554333758}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6536185707783341, 'precision': 0.18096161840099764, 'recall': 0.5819964349376114, 'f1': 0.276080752563154, 'roc_auc': 0.6680749771527073, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 4/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1507060285890858}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6465384479645099}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6325797805087746, 'precision': 0.17602271260807847, 'recall': 0.6078431372549019, 'f1': 0.27299109376563596, 'roc_auc': 0.6696994306048881, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 5/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1471997148188966}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.646410745102476}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6438072118545491, 'precision': 0.17959674188810254, 'recall': 0.5993761140819964, 'f1': 0.2763793280591801, 'roc_auc': 0.6701037135405561, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 6/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1434500234013059}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6475885419948237}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6249936782481161, 'precision': 0.1760431023681243, 'recall': 0.6261140819964349, 'f1': 0.2748166259168704, 'roc_auc': 0.6706890943848691, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 7/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.14106089712263}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6487060039422516}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.612350174480352, 'precision': 0.17244712990936556, 'recall': 0.6359180035650623, 'f1': 0.27131856640365054, 'roc_auc': 0.6713458364742959, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 8/8]
+[92mINFO [0m:      configure_train: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_train: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'train_loss': 1.1408957755312839}
+[92mINFO [0m:      configure_evaluate: Sampled 5 nodes (out of 5)
+[92mINFO [0m:      aggregate_evaluate: Received 5 results and 0 failures
+[92mINFO [0m:      	└──> Aggregated MetricRecord: {'roc_auc_weighted': 0.6487164139364948}
+[92mINFO [0m:      Global evaluation
+[92mINFO [0m:      	└──> MetricRecord: {'accuracy': 0.6693470894654326, 'precision': 0.18379970544919, 'recall': 0.5561497326203209, 'f1': 0.2762895727252601, 'roc_auc': 0.6693788897217333, 'n': 19773.0, 'n_pos': 2244.0}
+[92mINFO [0m:      
+[92mINFO [0m:      Strategy execution finished in 177.03s
+[92mINFO [0m:      
+[92mINFO [0m:      Final results:
+[92mINFO [0m:      
+[92mINFO [0m:      	Global Arrays:
+[92mINFO [0m:      		ArrayRecord (0.053 MB)
+[92mINFO [0m:      	
+[92mINFO [0m:      	Aggregated ClientApp-side Train Metrics:
+[92mINFO [0m:      	{ 1: {'train_loss': '1.1930e+00'},
+[92mINFO [0m:      	  2: {'train_loss': '1.1637e+00'},
+[92mINFO [0m:      	  3: {'train_loss': '1.1543e+00'},
+[92mINFO [0m:      	  4: {'train_loss': '1.1507e+00'},
+[92mINFO [0m:      	  5: {'train_loss': '1.1472e+00'},
+[92mINFO [0m:      	  6: {'train_loss': '1.1435e+00'},
+[92mINFO [0m:      	  7: {'train_loss': '1.1411e+00'},
+[92mINFO [0m:      	  8: {'train_loss': '1.1409e+00'}}
+[92mINFO [0m:      	
+[92mINFO [0m:      	Aggregated ClientApp-side Evaluate Metrics:
+[92mINFO [0m:      	{ 1: {'roc_auc_weighted': '6.3424e-01'},
+[92mINFO [0m:      	  2: {'roc_auc_weighted': '6.4331e-01'},
+[92mINFO [0m:      	  3: {'roc_auc_weighted': '6.4484e-01'},
+[92mINFO [0m:      	  4: {'roc_auc_weighted': '6.4654e-01'},
+[92mINFO [0m:      	  5: {'roc_auc_weighted': '6.4641e-01'},
+[92mINFO [0m:      	  6: {'roc_auc_weighted': '6.4759e-01'},
+[92mINFO [0m:      	  7: {'roc_auc_weighted': '6.4871e-01'},
+[92mINFO [0m:      	  8: {'roc_auc_weighted': '6.4872e-01'}}
+[92mINFO [0m:      	
+[92mINFO [0m:      	ServerApp-side Evaluate Metrics:
+[92mINFO [0m:      	{ 0: { 'accuracy': '3.8097e-01',
+[92mINFO [0m:      	       'f1': '1.8919e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.1111e-01',
+[92mINFO [0m:      	       'recall': '6.3636e-01',
+[92mINFO [0m:      	       'roc_auc': '4.7786e-01'},
+[92mINFO [0m:      	  1: { 'accuracy': '7.4278e-01',
+[92mINFO [0m:      	       'f1': '2.6033e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.9322e-01',
+[92mINFO [0m:      	       'recall': '3.9884e-01',
+[92mINFO [0m:      	       'roc_auc': '6.5380e-01'},
+[92mINFO [0m:      	  2: { 'accuracy': '6.6292e-01',
+[92mINFO [0m:      	       'f1': '2.7357e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.8107e-01',
+[92mINFO [0m:      	       'recall': '5.5927e-01',
+[92mINFO [0m:      	       'roc_auc': '6.6511e-01'},
+[92mINFO [0m:      	  3: { 'accuracy': '6.5362e-01',
+[92mINFO [0m:      	       'f1': '2.7608e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.8096e-01',
+[92mINFO [0m:      	       'recall': '5.8200e-01',
+[92mINFO [0m:      	       'roc_auc': '6.6807e-01'},
+[92mINFO [0m:      	  4: { 'accuracy': '6.3258e-01',
+[92mINFO [0m:      	       'f1': '2.7299e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.7602e-01',
+[92mINFO [0m:      	       'recall': '6.0784e-01',
+[92mINFO [0m:      	       'roc_auc': '6.6970e-01'},
+[92mINFO [0m:      	  5: { 'accuracy': '6.4381e-01',
+[92mINFO [0m:      	       'f1': '2.7638e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.7960e-01',
+[92mINFO [0m:      	       'recall': '5.9938e-01',
+[92mINFO [0m:      	       'roc_auc': '6.7010e-01'},
+[92mINFO [0m:      	  6: { 'accuracy': '6.2499e-01',
+[92mINFO [0m:      	       'f1': '2.7482e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.7604e-01',
+[92mINFO [0m:      	       'recall': '6.2611e-01',
+[92mINFO [0m:      	       'roc_auc': '6.7069e-01'},
+[92mINFO [0m:      	  7: { 'accuracy': '6.1235e-01',
+[92mINFO [0m:      	       'f1': '2.7132e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.7245e-01',
+[92mINFO [0m:      	       'recall': '6.3592e-01',
+[92mINFO [0m:      	       'roc_auc': '6.7135e-01'},
+[92mINFO [0m:      	  8: { 'accuracy': '6.6935e-01',
+[92mINFO [0m:      	       'f1': '2.7629e-01',
+[92mINFO [0m:      	       'n': '1.9773e+04',
+[92mINFO [0m:      	       'n_pos': '2.2440e+03',
+[92mINFO [0m:      	       'precision': '1.8380e-01',
+[92mINFO [0m:      	       'recall': '5.5615e-01',
+[92mINFO [0m:      	       'roc_auc': '6.6938e-01'}}
+[92mINFO [0m:      
+
+[federated seed 44] ROC-AUC 0.6694 recall 0.556 | train 104.12 s | 4.49 MB
+[92mINFO [0m:      
+
+--- stderr ---
+[92mINFO [0m:      Starting logstream for run_id `1747019142952541312`

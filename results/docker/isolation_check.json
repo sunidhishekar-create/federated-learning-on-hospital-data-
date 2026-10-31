@@ -1,0 +1,245 @@
+{
+  "mounts": {
+    "superlink": [
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/global_test.npz",
+        "container": "/app/data/processed/global_test.npz",
+        "read_only": true
+      },
+      {
+        "host": "<project>/results/docker",
+        "container": "/app/results",
+        "read_only": false
+      }
+    ],
+    "hospital-0": [
+      {
+        "host": "<project>/data/processed/hospital_0.npz",
+        "container": "/app/data/processed/hospital_0.npz",
+        "read_only": true
+      },
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      }
+    ],
+    "hospital-1": [
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/hospital_1.npz",
+        "container": "/app/data/processed/hospital_1.npz",
+        "read_only": true
+      },
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      }
+    ],
+    "hospital-2": [
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/hospital_2.npz",
+        "container": "/app/data/processed/hospital_2.npz",
+        "read_only": true
+      }
+    ],
+    "hospital-3": [
+      {
+        "host": "<project>/data/processed/hospital_3.npz",
+        "container": "/app/data/processed/hospital_3.npz",
+        "read_only": true
+      },
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      }
+    ],
+    "hospital-4": [
+      {
+        "host": "<project>/data/processed/hospital_4.npz",
+        "container": "/app/data/processed/hospital_4.npz",
+        "read_only": true
+      },
+      {
+        "host": "<project>/configs/config.yaml",
+        "container": "/app/configs/config.yaml",
+        "read_only": true
+      },
+      {
+        "host": "<project>/data/processed/meta.json",
+        "container": "/app/data/processed/meta.json",
+        "read_only": true
+      }
+    ]
+  },
+  "visible_files": {
+    "superlink": [
+      "global_test.npz",
+      "meta.json"
+    ],
+    "hospital-0": [
+      "hospital_0.npz",
+      "meta.json"
+    ],
+    "hospital-1": [
+      "hospital_1.npz",
+      "meta.json"
+    ],
+    "hospital-2": [
+      "hospital_2.npz",
+      "meta.json"
+    ],
+    "hospital-3": [
+      "hospital_3.npz",
+      "meta.json"
+    ],
+    "hospital-4": [
+      "hospital_4.npz",
+      "meta.json"
+    ]
+  },
+  "cross_hospital_reads": {
+    "hospital-0": {
+      "hospital_1.npz": "absent",
+      "hospital_2.npz": "absent",
+      "hospital_3.npz": "absent",
+      "hospital_4.npz": "absent",
+      "global_test.npz": "absent",
+      "pool.npz": "absent",
+      "write_attempt": "touch: cannot touch '/app/data/processed/x': Permission denied"
+    },
+    "hospital-1": {
+      "hospital_0.npz": "absent",
+      "hospital_2.npz": "absent",
+      "hospital_3.npz": "absent",
+      "hospital_4.npz": "absent",
+      "global_test.npz": "absent",
+      "pool.npz": "absent",
+      "write_attempt": "touch: cannot touch '/app/data/processed/x': Permission denied"
+    },
+    "hospital-2": {
+      "hospital_0.npz": "absent",
+      "hospital_1.npz": "absent",
+      "hospital_3.npz": "absent",
+      "hospital_4.npz": "absent",
+      "global_test.npz": "absent",
+      "pool.npz": "absent",
+      "write_attempt": "touch: cannot touch '/app/data/processed/x': Permission denied"
+    },
+    "hospital-3": {
+      "hospital_0.npz": "absent",
+      "hospital_1.npz": "absent",
+      "hospital_2.npz": "absent",
+      "hospital_4.npz": "absent",
+      "global_test.npz": "absent",
+      "pool.npz": "absent",
+      "write_attempt": "touch: cannot touch '/app/data/processed/x': Permission denied"
+    },
+    "hospital-4": {
+      "hospital_0.npz": "absent",
+      "hospital_1.npz": "absent",
+      "hospital_2.npz": "absent",
+      "hospital_3.npz": "absent",
+      "global_test.npz": "absent",
+      "pool.npz": "absent",
+      "write_attempt": "touch: cannot touch '/app/data/processed/x': Permission denied"
+    }
+  },
+  "network": {
+    "superlink": [
+      "hospital0-net",
+      "hospital1-net",
+      "hospital2-net",
+      "hospital3-net",
+      "hospital4-net"
+    ],
+    "hospital-0": [
+      "hospital0-net"
+    ],
+    "hospital-1": [
+      "hospital1-net"
+    ],
+    "hospital-2": [
+      "hospital2-net"
+    ],
+    "hospital-3": [
+      "hospital3-net"
+    ],
+    "hospital-4": [
+      "hospital4-net"
+    ],
+    "hospital-0_can_reach": {
+      "hospital-1": "unreachable",
+      "hospital-2": "unreachable",
+      "hospital-3": "unreachable",
+      "hospital-4": "unreachable"
+    },
+    "hospital-1_can_reach": {
+      "hospital-0": "unreachable",
+      "hospital-2": "unreachable",
+      "hospital-3": "unreachable",
+      "hospital-4": "unreachable"
+    },
+    "hospital-2_can_reach": {
+      "hospital-0": "unreachable",
+      "hospital-1": "unreachable",
+      "hospital-3": "unreachable",
+      "hospital-4": "unreachable"
+    },
+    "hospital-3_can_reach": {
+      "hospital-0": "unreachable",
+      "hospital-1": "unreachable",
+      "hospital-2": "unreachable",
+      "hospital-4": "unreachable"
+    },
+    "hospital-4_can_reach": {
+      "hospital-0": "unreachable",
+      "hospital-1": "unreachable",
+      "hospital-2": "unreachable",
+      "hospital-3": "unreachable"
+    }
+  },
+  "summary": {
+    "each_hospital_sees_only_its_own_partition_and_meta": true,
+    "no_hospital_can_read_another_hospital_or_pooled_or_test_data": true,
+    "server_has_no_hospital_partition": true,
+    "all_data_and_config_mounts_read_only": true,
+    "hospitals_cannot_reach_each_other_on_the_network": true
+  }
+}

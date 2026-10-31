@@ -28,6 +28,22 @@ def _opt(context: Context, key: str, default=0):
     return OVERRIDES.get(key, context.run_config.get(key, default))
 
 
+def _net_bytes():
+    """(received, sent) bytes summed over this container's network interfaces, from the
+    kernel counters. Linux only: returns None elsewhere (e.g. a Mac running the simulation)."""
+    try:
+        rx = tx = 0
+        with open("/proc/net/dev") as f:
+            for line in list(f)[2:]:
+                name, data = line.split(":", 1)
+                if name.strip() != "lo":
+                    cols = data.split()
+                    rx, tx = rx + int(cols[0]), tx + int(cols[8])
+        return rx, tx
+    except OSError:
+        return None
+
+
 def _records(replies) -> list:
     """Each reply's metrics as a plain dict."""
     return [dict(next(iter(r.metric_records.values()))) for r in replies]
@@ -53,6 +69,7 @@ def main(grid: Grid, context: Context) -> None:
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
     train_log, site_log, global_log = [], [], {}
+    marks = []        # (time, network counters) at the end of each round's global evaluation
     clock = {"eval_s": 0.0, "train_end": None}   # eval_s: time spent evaluating, not training
 
     def train_aggr(records, weight_key):
@@ -79,6 +96,7 @@ def main(grid: Grid, context: Context) -> None:
         global_log[server_round] = res
         torch.save(m.state_dict(), ckpt_dir / f"federated_seed{seed}_round{server_round}.pt")
         clock["eval_s"] += time.perf_counter() - start                # server-side evaluation
+        marks.append((time.perf_counter(), _net_bytes()))
         return MetricRecord({k: float(v) for k, v in res.items()})
 
     strategy = FedAvg(
@@ -116,6 +134,10 @@ def main(grid: Grid, context: Context) -> None:
         "client_train_seconds_max": max(r["train_seconds"] for r in train_log[i]),
         "bytes_train": 2 * H * model_bytes,         # model down + update up, every client
         "bytes_eval_down": H * model_bytes,         # global model sent for local evaluation
+        "round_seconds": marks[i + 1][0] - marks[i][0],     # whole round incl. both evaluations
+        **({"net_rx_bytes": marks[i + 1][1][0] - marks[i][1][0],      # measured at the server:
+            "net_tx_bytes": marks[i + 1][1][1] - marks[i][1][1]}      # received / sent
+           if marks[0][1] else {}),
     } for i in range(rounds)]
 
     n_train = int(sum(r["num-examples"] for r in train_log[0]))
@@ -138,6 +160,11 @@ def main(grid: Grid, context: Context) -> None:
         "fairness_gaps": fairness_gaps(per_site),
         "history": history,
     }
+    if marks[0][1]:       # only inside a Linux container: measured network traffic, rounds 1..R
+        result["measured_network"] = {
+            "rx_bytes_total": marks[-1][1][0] - marks[0][1][0],       # clients -> server
+            "tx_bytes_total": marks[-1][1][1] - marks[0][1][1],       # server -> clients
+        }
 
     out = ROOT / cfg["paths"]["results_dir"] / "federated_runs"
     out.mkdir(parents=True, exist_ok=True)

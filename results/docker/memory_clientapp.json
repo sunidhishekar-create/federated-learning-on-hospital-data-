@@ -1,0 +1,150 @@
+{
+  "what": "Memory of one ClientApp process (Flower starts one per message), hospital 1 = largest partition. Measured with docker/measure_memory.py inside the hospital image, 1 CPU, OMP_NUM_THREADS=1.",
+  "before": "previous code: ClientApp imported src.metrics (scikit-learn -> SciPy, joblib, pandas); src.data_loader imported pandas/scikit-learn at module level",
+  "after": "ClientApp uses src/federated/client_metrics.py (NumPy only, identical results, see client_metrics_equivalence.json); src.data_loader imports pandas/scikit-learn lazily; torch.set_num_threads(1) and set_num_interop_threads(1)",
+  "peak_mb": {
+    "train": {
+      "before": 463,
+      "after": 359,
+      "saved": 104
+    },
+    "evaluate": {
+      "before": 386,
+      "after": 284,
+      "saved": 102
+    }
+  },
+  "heavy_modules_loaded": {
+    "train": {
+      "before": [
+        "joblib",
+        "pandas",
+        "scipy",
+        "sklearn"
+      ],
+      "after": []
+    },
+    "evaluate": {
+      "before": [
+        "joblib",
+        "pandas",
+        "scipy",
+        "sklearn"
+      ],
+      "after": []
+    }
+  },
+  "stages_before": {
+    "train": {
+      "python started": {
+        "rss_mb": 10,
+        "anon_mb": 4,
+        "peak_mb": 10
+      },
+      "flwr imported": {
+        "rss_mb": 64,
+        "anon_mb": 37,
+        "peak_mb": 64
+      },
+      "ClientApp module imported": {
+        "rss_mb": 356,
+        "anon_mb": 239,
+        "peak_mb": 356
+      },
+      "own partition loaded": {
+        "rss_mb": 373,
+        "anon_mb": 256,
+        "peak_mb": 373
+      },
+      "1 local epoch trained": {
+        "rss_mb": 463,
+        "anon_mb": 330,
+        "peak_mb": 463
+      }
+    },
+    "evaluate": {
+      "python started": {
+        "rss_mb": 10,
+        "anon_mb": 4,
+        "peak_mb": 10
+      },
+      "flwr imported": {
+        "rss_mb": 64,
+        "anon_mb": 37,
+        "peak_mb": 64
+      },
+      "ClientApp module imported": {
+        "rss_mb": 355,
+        "anon_mb": 237,
+        "peak_mb": 355
+      },
+      "own partition loaded": {
+        "rss_mb": 373,
+        "anon_mb": 254,
+        "peak_mb": 373
+      },
+      "validation metrics computed": {
+        "rss_mb": 386,
+        "anon_mb": 259,
+        "peak_mb": 386
+      }
+    }
+  },
+  "stages_after": {
+    "train": {
+      "python started": {
+        "rss_mb": 10,
+        "anon_mb": 4,
+        "peak_mb": 10
+      },
+      "flwr imported": {
+        "rss_mb": 64,
+        "anon_mb": 37,
+        "peak_mb": 64
+      },
+      "ClientApp module imported": {
+        "rss_mb": 250,
+        "anon_mb": 161,
+        "peak_mb": 250
+      },
+      "own partition loaded": {
+        "rss_mb": 268,
+        "anon_mb": 179,
+        "peak_mb": 268
+      },
+      "1 local epoch trained": {
+        "rss_mb": 359,
+        "anon_mb": 252,
+        "peak_mb": 359
+      }
+    },
+    "evaluate": {
+      "python started": {
+        "rss_mb": 10,
+        "anon_mb": 4,
+        "peak_mb": 10
+      },
+      "flwr imported": {
+        "rss_mb": 64,
+        "anon_mb": 37,
+        "peak_mb": 64
+      },
+      "ClientApp module imported": {
+        "rss_mb": 250,
+        "anon_mb": 161,
+        "peak_mb": 250
+      },
+      "own partition loaded": {
+        "rss_mb": 268,
+        "anon_mb": 179,
+        "peak_mb": 268
+      },
+      "validation metrics computed": {
+        "rss_mb": 284,
+        "anon_mb": 184,
+        "peak_mb": 284
+      }
+    }
+  },
+  "note": "The ~90 MB added by training is a fixed one-time cost of PyTorch's first forward/backward pass (same for 8k and 22k rows), not data."
+}

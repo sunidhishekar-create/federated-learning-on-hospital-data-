@@ -1,0 +1,72 @@
+{
+  "seed": 44,
+  "flwr_run_wall_seconds": 190.8,
+  "container_memory_after_run": {
+    "superlink": {
+      "current_mb": 388,
+      "peak_mb": 721,
+      "anon_now_mb": 173,
+      "swap_peak_mb": 94
+    },
+    "hospital-0": {
+      "current_mb": 194,
+      "peak_mb": 558,
+      "anon_now_mb": 123,
+      "swap_peak_mb": 65
+    },
+    "hospital-1": {
+      "current_mb": 131,
+      "peak_mb": 609,
+      "anon_now_mb": 102,
+      "swap_peak_mb": 86
+    },
+    "hospital-2": {
+      "current_mb": 173,
+      "peak_mb": 659,
+      "anon_now_mb": 124,
+      "swap_peak_mb": 65
+    },
+    "hospital-3": {
+      "current_mb": 132,
+      "peak_mb": 603,
+      "anon_now_mb": 103,
+      "swap_peak_mb": 85
+    },
+    "hospital-4": {
+      "current_mb": 160,
+      "peak_mb": 527,
+      "anon_now_mb": 131,
+      "swap_peak_mb": 57
+    }
+  },
+  "container_traffic_bytes": {
+    "superlink": {
+      "rx": 5587177,
+      "tx": 6941586
+    },
+    "hospital-0": {
+      "rx": 1558079,
+      "tx": 1136556
+    },
+    "hospital-1": {
+      "rx": 1558545,
+      "tx": 1132601
+    },
+    "hospital-2": {
+      "rx": 1556170,
+      "tx": 1134116
+    },
+    "hospital-3": {
+      "rx": 1558435,
+      "tx": 1136520
+    },
+    "hospital-4": {
+      "rx": 1557534,
+      "tx": 1134715
+    }
+  },
+  "server_traffic_bytes": {
+    "rx": 5587177,
+    "tx": 6941586
+  }
+}
