@@ -39,7 +39,7 @@ centralized:
   epochs: 8
 
 federated:                                  # teammate owns this section
-  num_rounds: 20
+  num_rounds: 8                             # matches centralized.epochs (8) for a fair comparison
   local_epochs: 1
   fraction_fit: 1.0
   min_available_clients: 5
