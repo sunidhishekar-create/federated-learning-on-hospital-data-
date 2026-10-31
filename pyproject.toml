@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hospital-fl"
+version = "0.1.0"
+description = "Federated learning across five simulated hospitals (Flower, FedAvg)"
+requires-python = ">=3.12"
+dependencies = [
+    "flwr[simulation]==1.42.0",
+    "torch==2.14.1",
+    "numpy==2.5.4",
+    "scikit-learn==1.9.1",
+    "pandas==3.1.0",
+    "pyyaml==6.0.3",
+    "joblib==1.6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.flwr.app]
+publisher = "local"
+flwr-version-target = "1.42.0"
+
+[tool.flwr.app.components]
+serverapp = "src.federated.server_app:app"
+clientapp = "src.federated.client_app:app"
+
+# Rounds, local epochs, learning rate and batch size come from configs/config.yaml
+# (federated: and training: sections). 0 below means "use config.yaml".
+[tool.flwr.app.config]
+seed = 42
+num-server-rounds = 0
+local-epochs = 0
+
+
+#######################################################################
+# CONFIGURATION MIGRATION NOTICE:
+#
+# What was previously called "federation config" for SuperLink
+# connections in pyproject.toml has been renamed and moved.
+#
+# These settings are now **SuperLink connection configuration**
+# and are defined in the Flower configuration file.
+#
+# The entries below are commented out intentionally and are kept
+# only as a migration reference.
+#
+# Docs: https://flower.ai/docs/framework/ref-flower-configuration.html
+#######################################################################
+
+#
