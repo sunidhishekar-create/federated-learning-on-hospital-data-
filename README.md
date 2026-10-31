@@ -84,6 +84,8 @@ src/metrics.py             metrics, per-site evaluation, fairness gaps
 src/centralized.py         centralized baseline (one run)
 src/multiseed.py           centralized baseline over eval_seeds
 src/federated/             Flower code (Part 2)
+docker-compose.yml         Docker deployment: 1 server + 5 hospital containers
+docker/                    Dockerfile, run_experiment.py, Flower CLI config for the containers
 notebooks/01_explore.ipynb              data exploration
 notebooks/02_centralized_results.ipynb  centralized results and per-site analysis
 notebooks/03_epoch_selection.ipynb      epoch selection on validation data
@@ -91,6 +93,7 @@ results/centralized.json          single run (seed 42): metrics, per-site table,
 results/centralized_seeds.json    mean and std over eval_seeds, per-site means
 results/hospital_partition.csv    table of the simulated hospitals
 results/figures/           plots used in the report
+results/docker/            Docker deployment results, isolation evidence, logs
 results/checkpoints/       model checkpoints (gitignored)
 DATA_CARD.md               data card
 ```
@@ -227,6 +230,89 @@ Work on branch `feature/flower-fl`, in `src/federated/` and the `federated:` sec
 - `python -m src.federated.<your entry point>` or `flwr run` reproduces a run from a fresh clone, and the exact commands are written in this README.
 - `results/federated.json` and `results/federated_seeds.json` exist and load next to the centralized files.
 - The README's "Part 2 results" section is filled in.
+
+## Docker deployment: one container per hospital
+
+The same Flower app also runs as **separate containers** instead of in one process: one server container and five hospital containers, using Flower's Deployment Engine (SuperLink and SuperNodes, Flower 1.42). Model, hyperparameters, seeds, metrics and FedAvg code are unchanged; only how the processes are started differs.
+
+```mermaid
+flowchart LR
+    cli["flwr run (your machine)"] -->|"submits the app, port 9810"| SL
+    subgraph server["server container"]
+        SL["SuperLink"] --> SA["ServerApp<br/>FedAvg, global evaluation"]
+        GT[("global_test.npz<br/>read-only")]
+    end
+    subgraph h0["hospital-0 container, network hospital0-net"]
+        N0["SuperNode + ClientApp"] --- D0[("hospital_0.npz<br/>read-only")]
+    end
+    subgraph h1["hospital-1 container, network hospital1-net"]
+        N1["SuperNode + ClientApp"] --- D1[("hospital_1.npz<br/>read-only")]
+    end
+    subgraph h4["hospital-2, 3, 4 containers (same pattern)"]
+        N4["SuperNode + ClientApp"] --- D4[("own partition only<br/>read-only")]
+    end
+    SL <-->|"model weights + metrics only"| N0
+    SL <-->|"model weights + metrics only"| N1
+    SL <-->|"model weights + metrics only"| N4
+```
+
+- **Only weights travel.** Each round the server sends the global model to every hospital, each hospital trains on its own data and sends back updated weights and metric numbers. Patient rows never leave a container.
+- **Data isolation** (in `docker-compose.yml`): each hospital container mounts only its own `hospital_<i>.npz` plus `meta.json` (feature count and names, no patient rows), read-only. The server mounts no hospital data, only the global test set it uses to score the shared model. Each hospital is on its own private network that only the server joins, so hospitals cannot reach each other. `docker/run_experiment.py` verifies all of this on the running containers and saves the evidence to `results/docker/isolation_check.json`.
+- The Flower base images are extended with the project's dependencies (`docker/Dockerfile`). The Ubuntu variant is used because the default Alpine images cannot install PyTorch, and PyTorch comes from the CPU-only wheel index. The app code is sent by `flwr run`; data and config are mounted, never copied into an image (`.dockerignore` excludes `data/`).
+
+### Setup
+
+1. Docker Desktop running (tested on Apple Silicon, Docker 29, 8 CPUs). Docker's default memory (about 4 GB) is just enough if no other containers are running (Settings > Resources; 6 GB or more gives headroom). Each hospital container is limited to 1 CPU, the server to 2.
+2. The processed data must exist: `python -m src.prepare` (see "Reproduce Part 1").
+3. The project venv provides the `flwr` command: `source .venv/bin/activate` (macOS) or `.venv\Scripts\Activate.ps1` (Windows).
+
+### Run
+
+One command does everything (start the containers, check isolation, run, measure, save to `results/docker/`):
+
+```
+python docker/run_experiment.py --seeds 42          # one seed, about 5 min including startup
+python docker/run_experiment.py                     # all eval_seeds, about 20 min
+python docker/run_experiment.py --down              # same, then stop and remove the containers
+```
+
+Or step by step:
+
+```
+docker compose up -d --build                                       # server + 5 hospitals
+docker compose logs superlink | grep "Activated node"              # wait for 5 lines
+FLWR_HOME=docker/flwr_home flwr run . docker-deployment --run-config "seed=42" --stream
+```
+
+`FLWR_HOME=docker/flwr_home` points the Flower CLI at the containers (`docker/flwr_home/config.toml`, SuperLink on `127.0.0.1:9810`) without touching your own `~/.flwr`. Results go to `results/docker/federated_runs/seed_<seed>.json`. Port 9810 is used because 8000 is often taken; change it in both `docker-compose.yml` and `docker/flwr_home/config.toml` if needed.
+
+### Stop and clean up
+
+```
+docker compose down                                  # stop and remove the 6 containers and 5 networks
+docker image rm hospital-fl-superlink:1.42.0 hospital-fl-supernode:1.42.0   # about 2.4 GB each
+docker image rm flwr/superlink:1.42.0-py3.13-ubuntu24.04 flwr/supernode:1.42.0-py3.13-ubuntu24.04
+docker builder prune                                 # optional: build cache
+```
+
+No named volumes are created. Results stay in `results/docker/`; model checkpoints there are gitignored (`*.pt`).
+
+### Results: Docker vs simulation
+
+Five seeds (42 to 46), 8 rounds, same machine (MacBook, Docker VM with 8 CPUs and 3.8 GiB). Details and plots in `notebooks/04_federated_vs_centralized.ipynb`, section 7; raw files in `results/docker/`.
+
+| | Simulation (one process) | Docker (6 containers) |
+|---|---|---|
+| Global ROC-AUC | 0.6696 ± 0.0012 | 0.6699 ± 0.0012 |
+| Per-hospital ROC-AUC gap | 0.090 ± 0.004 | 0.089 ± 0.002 |
+| Communication, 8 rounds | 6.7 MB (computed from model size) | 12.3 ± 0.1 MB (measured at the server) |
+| Training time, in-app | 34 ± 8 s | 116 ± 20 s |
+| End to end, incl. app delivery | not recorded | 217 ± 42 s |
+
+- **Same model quality.** Per seed the two differ by at most 0.0006 ROC-AUC; not bit-identical because the containers run Python 3.13 and Linux PyTorch with one thread per hospital.
+- **Real traffic is about 1.8x the estimate.** Round 1 also ships the app code to every hospital (~240 KB each), and every round adds HTTP overhead and the SuperNodes' polling and heartbeats (2.7 KB/s even when idle).
+- **Slower.** Flower starts a fresh ClientApp process for every message, which imports PyTorch on one CPU before working, and each hospital trains with one thread. This run shows the deployment works and what it costs; it is not a speed benchmark.
+- **Memory.** The stack uses about 1.1 GB when idle; the containers' individual peaks add up to 3.7 GB (an upper bound: the peaks are not simultaneous and include file cache). To fit Docker's default 3.8 GiB, the ClientApp avoids scikit-learn, SciPy and pandas: it uses a NumPy-only copy of the metrics (`src/federated/client_metrics.py`, verified identical by `docker/check_client_metrics.py`), which cuts each client process from 463 to 359 MB. Close other containers before running; with more Docker memory none of this matters.
 
 ## Git workflow
 
