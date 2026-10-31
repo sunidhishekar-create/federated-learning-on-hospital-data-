@@ -1,0 +1,135 @@
+{
+  "docker_server_version": "29.5.3",
+  "docker_cpus": 8,
+  "docker_memory_bytes": 4108632064,
+  "architecture": "aarch64",
+  "images": {
+    "server": {
+      "id": "sha256:2c215227ea9820905103e1fe61c254649e37e02cd0ff91d4a116a91c15086a82",
+      "size_bytes": 508757010
+    },
+    "hospital": {
+      "id": "sha256:b810de05864ccaeb3e42d447c2f31276adaa687a073f07b980b6d7cfd226eab8",
+      "size_bytes": 508756832
+    }
+  },
+  "idle_memory": {
+    "containers": {
+      "superlink": {
+        "current_mb": 196,
+        "peak_mb": 198,
+        "anon_now_mb": 188,
+        "swap_peak_mb": 0
+      },
+      "hospital-0": {
+        "current_mb": 189,
+        "peak_mb": 190,
+        "anon_now_mb": 181,
+        "swap_peak_mb": 0
+      },
+      "hospital-1": {
+        "current_mb": 187,
+        "peak_mb": 188,
+        "anon_now_mb": 181,
+        "swap_peak_mb": 0
+      },
+      "hospital-2": {
+        "current_mb": 188,
+        "peak_mb": 190,
+        "anon_now_mb": 181,
+        "swap_peak_mb": 0
+      },
+      "hospital-3": {
+        "current_mb": 187,
+        "peak_mb": 189,
+        "anon_now_mb": 181,
+        "swap_peak_mb": 0
+      },
+      "hospital-4": {
+        "current_mb": 188,
+        "peak_mb": 189,
+        "anon_now_mb": 181,
+        "swap_peak_mb": 0
+      }
+    },
+    "flower_processes": {
+      "superlink": [
+        {
+          "process": "flower-superlink",
+          "rss_mb": 136,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ],
+      "hospital-0": [
+        {
+          "process": "flower-supernode",
+          "rss_mb": 130,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ],
+      "hospital-1": [
+        {
+          "process": "flower-supernode",
+          "rss_mb": 130,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ],
+      "hospital-2": [
+        {
+          "process": "flower-supernode",
+          "rss_mb": 130,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ],
+      "hospital-3": [
+        {
+          "process": "flower-supernode",
+          "rss_mb": 130,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ],
+      "hospital-4": [
+        {
+          "process": "flower-supernode",
+          "rss_mb": 130,
+          "swap_mb": 0
+        },
+        {
+          "process": "flower-superexec",
+          "rss_mb": 121,
+          "swap_mb": 0
+        }
+      ]
+    }
+  },
+  "idle_traffic": {
+    "seconds": 20,
+    "rx_bytes_per_s": 2166.6,
+    "tx_bytes_per_s": 583.8
+  }
+}
