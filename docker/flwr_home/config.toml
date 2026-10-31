@@ -1,0 +1,8 @@
+# Flower connection settings for the Docker deployment. Used by setting FLWR_HOME=docker/flwr_home
+# so the user's own ~/.flwr is left alone. The container publishes the SuperLink on localhost:9810.
+[superlink]
+default = "docker-deployment"
+
+[superlink.docker-deployment]
+address = "127.0.0.1:9810"
+insecure = true

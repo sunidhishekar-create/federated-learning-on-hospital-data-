@@ -20,3 +20,6 @@ results/checkpoints/
 # OS / editor
 .DS_Store
 Thumbs.db
+# Flower CLI state for the Docker deployment (only the connection config is tracked)
+docker/flwr_home/*
+!docker/flwr_home/config.toml
