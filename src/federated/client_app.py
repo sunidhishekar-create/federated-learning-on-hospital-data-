@@ -1,15 +1,26 @@
 """Flower ClientApp: one client = one hospital. It only ever loads its own data."""
+import os
 import time
 from functools import lru_cache
 
+import torch
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
 from flwr.clientapp import ClientApp
 
 from src.data_loader import get_input_dim, load_config, load_hospital_data
-from src.metrics import bootstrap_auc_ci, compute_metrics
+# NumPy-only twins of src.metrics (verified identical by docker/check_client_metrics.py), so a
+# client process does not load scikit-learn, SciPy and pandas (~100 MB) just for five metrics.
+from src.federated.client_metrics import bootstrap_auc_ci, compute_metrics
 from src.model import build_model, predict_proba, train
 
 app = ClientApp()
+
+# In the Docker deployment each hospital has one CPU and OMP_NUM_THREADS=1. Make PyTorch follow
+# it for both of its thread pools, so a client process starts no extra threads (and their memory).
+# Not set in the simulation, which keeps PyTorch's defaults.
+if os.environ.get("OMP_NUM_THREADS"):
+    torch.set_num_threads(int(os.environ["OMP_NUM_THREADS"]))
+    torch.set_num_interop_threads(1)
 
 
 @lru_cache(maxsize=None)

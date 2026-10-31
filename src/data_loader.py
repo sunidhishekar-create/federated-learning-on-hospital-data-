@@ -1,15 +1,17 @@
 import json
+import os
 from pathlib import Path
 
-import joblib
 import numpy as np
-import pandas as pd
 import yaml
-from sklearn.compose import ColumnTransformer
-from sklearn.model_selection import GroupShuffleSplit
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-ROOT = Path(__file__).resolve().parents[1]
+# pandas, scikit-learn and joblib are imported inside the preprocessing functions that use them.
+# The loading functions below need only numpy, so a federated client (which only loads its own
+# partition) does not pay ~100 MB of memory per process for libraries it never calls.
+
+# FL_ROOT overrides the project root. The Docker deployment sets it to /app so that data and
+# config are read from fixed mount points, even when Flower runs a copy of the code.
+ROOT = Path(os.environ.get("FL_ROOT") or Path(__file__).resolve().parents[1])
 AGE_MAP = {f"[{a}-{a+10})": a + 5 for a in range(0, 100, 10)}
 EXCLUDE_DISCHARGE = [11, 13, 14, 19, 20, 21]   # expired / hospice
 CATEGORY_CODES = ["admission_type_id", "discharge_disposition_id", "admission_source_id"]
@@ -32,6 +34,7 @@ def _processed_dir(cfg=None) -> Path:
 # ---------------------------------------------------------------- cleaning
 def icd9_group(code) -> str:
     """Collapse an ICD-9 diagnosis code into a broad category."""
+    import pandas as pd
     if pd.isna(code):
         return "Unknown"
     code = str(code)
@@ -53,6 +56,7 @@ def icd9_group(code) -> str:
 def load_and_clean(cfg=None):
     """Raw CSV -> (X, y, meta). X: cleaned features (still unencoded).
     y: 0/1 target. meta: patient_nbr and age_group, used for splitting/partitioning."""
+    import pandas as pd
     cfg = cfg or load_config()
     d = cfg["data"]
     df = pd.read_csv(
@@ -87,6 +91,10 @@ def load_and_clean(cfg=None):
 def prepare_pool_and_test(cfg=None) -> dict:
     """Clean -> patient-grouped split -> encode/scale (fit on pool only) -> save.
     Writes pool.npz, global_test.npz, meta.json, preprocessor.joblib."""
+    import joblib
+    from sklearn.compose import ColumnTransformer
+    from sklearn.model_selection import GroupShuffleSplit
+    from sklearn.preprocessing import OneHotEncoder, StandardScaler
     cfg = cfg or load_config()
     X, y, meta = load_and_clean(cfg)
 
