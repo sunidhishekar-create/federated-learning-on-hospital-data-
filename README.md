@@ -1,243 +1,38 @@
 # Federated Learning Across Simulated Hospitals
 
-Big Data course project, <course name>. Team: <Name 1> (data, centralized baseline), <Name 2> (Flower federated training).
+Big Data course project   
+Team: Sunidhi Shekar (data, centralized baseline)   
+      Sonia Sharma (Flower federated training, Docker deployment)   
+  
 
-Several hospitals want a shared readmission model but cannot move patient records out of their own systems. We simulate five hospitals with non-IID data, then compare **centralized** training against **federated** training (Flower, FedAvg) on accuracy, communication cost, training time and per-site fairness.
+Several hospitals want a shared 30-day readmission model but cannot move patient records out of their own systems. We simulate five hospitals with non-IID data from the UCI Diabetes 130-US Hospitals dataset and deploy federated training as **six isolated Docker containers**: one aggregation server and one container per hospital. Each hospital container sees only its own data, and only model weights cross the network.
 
-## Status
+We compare three approaches on accuracy, communication cost, training time and per-site fairness:
 
-| Part | Owner | Status |
+- **centralized** training on pooled data;
+- **federated** training with Flower and FedAvg;
+- a **local-only** baseline, where each hospital trains alone.
+
+### Key results
+
+Means over 5 seeds; confidence intervals and p-values come from a paired bootstrap with 1,000 draws.
+
+| | Centralized | Federated (Docker deployment) |
 |---|---|---|
-| Data cleaning, patient-grouped split, encoding | <Name 1> | Done |
-| Five simulated non-IID hospitals | <Name 1> | Done |
-| Shared model, metrics, per-site evaluation | <Name 1> | Done |
-| Centralized baseline (single run and 5 seeds) | <Name 1> | Done |
-| Epoch selection on validation data (8 epochs) | <Name 1> | Done |
-| Results notebook (centralized), data card | <Name 1> | Done |
-| Flower server/clients, FedAvg, logging, checkpoints | <Name 2> | **To do** |
-| Federated runs over 5 seeds | <Name 2> | **To do** |
-| Federated vs. centralized comparison, per-site fairness analysis | both | To do |
-| Model card, technical report, demo video | both | To do |
+| Global test ROC-AUC | 0.6777 ± 0.0023 | 0.6699 ± 0.0012 |
+| Per-hospital ROC-AUC gap | 0.086 ± 0.009 | 0.089 ± 0.002 |
+| Communication, 8 rounds | none | 12.3 ± 0.1 MB measured on the network (6.7 MB of it is model weights) |
+| Training time (same Mac) | 5.8 ± 0.5 s | 116 ± 20 s (217 ± 42 s end to end) |
+
+- **Accuracy.** Federated learning costs about 0.008 ROC-AUC compared with pooling all data: −0.008 [−0.013, −0.003], p = 0.001. The loss is small but statistically clear.
+- **Who loses.** The loss falls mostly on hospital 2 (−0.025, p = 0.001). That result still holds after adjusting for age.
+- **Fairness.** The gap between the best and worst hospital does not change significantly (p = 0.75).
+- **Why join.** Every hospital's own model generalizes worse to other hospitals' patients than the federated model does: by +0.005 to +0.113 ROC-AUC, all p ≤ 0.05.
+- **Isolation.** All five data-isolation checks pass on the running containers.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    raw[data/raw/diabetic_data.csv] --> prep[data_loader.py<br/>clean, split by patient, encode]
-    prep --> pool[(pool.npz)]
-    prep --> test[(global_test.npz)]
-    pool --> part[partition.py<br/>5 non-IID hospitals]
-    part --> h[(hospital_0..4.npz)]
-    h --> cen[centralized.py<br/>union of train splits]
-    h --> c0[Flower client 0..4<br/>local training]
-    c0 <--> srv[Flower server<br/>FedAvg]
-    cen --> res[results/*.json]
-    srv --> res
-    test --> res
-```
-
-## Dataset
-
-[Diabetes 130-US Hospitals for Years 1999-2008](https://archive.ics.uci.edu/dataset/296/diabetes-130-us-hospitals-for-years-1999-2008) (UCI), licensed CC BY 4.0. Source: Strack et al., 2014. Task: predict readmission within 30 days (`readmitted == "<30"` is 1, otherwise 0). About 11% of encounters are positive. Details are in [`DATA_CARD.md`](DATA_CARD.md).
-
-The dataset has **no hospital ID column**, so the five hospitals are *simulated* (see `src/partition.py`).
-
-## Setup (Windows, PowerShell, VS Code)
-
-Use **Python 3.12** (both team members must use the same minor version).
-
-```
-git clone https://github.com/sunidhishekar-create/federated-learning-on-hospital-data-.git
-cd federated-learning-on-hospital-data-
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-If PowerShell blocks activation, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once. In VS Code select the interpreter with `Ctrl+Shift+P` > Python: Select Interpreter > `.venv`.
-
-Download the dataset from the link above and put `diabetic_data.csv` and `IDS_mapping.csv` into `data/raw/` (gitignored).
-
-## Reproduce Part 1
-
-```
-python -m src.prepare        # clean, split, encode, build 5 hospitals (~10 s)
-python -m src.centralized    # single baseline run (seed 42, ~25 s) -> results/centralized.json
-python -m src.multiseed      # 5-seed baseline (~2 min) -> results/centralized_seeds.json
-```
-
-Everything is seeded (`seed` and `eval_seeds` in `configs/config.yaml`), so results reproduce exactly. A fresh clone gave identical data and partitions.
-
-**Check your setup:** after `src.prepare` and `src.centralized`, the output must show **ROC-AUC 0.6781** on the global test set and a partition table with hospital sizes 13,586 / 23,965 / 10,273 / 9,026 / 22,717. If not, stop and tell <Name 1> before building anything on top.
-
-## Project structure
-
-```
-configs/config.yaml        shared settings (see ownership rules below)
-data/raw/                  downloaded CSVs (gitignored)
-data/processed/            generated .npz files (gitignored)
-src/data_loader.py         cleaning, split, encoding, loading functions
-src/partition.py           builds the 5 non-IID hospitals
-src/prepare.py             one command: split + partition
-src/model.py               MLP, get/set weights, training loop
-src/metrics.py             metrics, per-site evaluation, fairness gaps
-src/centralized.py         centralized baseline (one run)
-src/multiseed.py           centralized baseline over eval_seeds
-src/federated/             Flower code (Part 2)
-src/local_only.py          local-only baseline: each hospital trains on its own data only
-src/compare.py             paired bootstrap: federated vs centralized vs local-only, age-adjusted AUC
-docker-compose.yml         Docker deployment: 1 server + 5 hospital containers
-docker/                    Dockerfile, run_experiment.py, Flower CLI config for the containers
-notebooks/01_explore.ipynb              data exploration
-notebooks/02_centralized_results.ipynb  centralized results and per-site analysis
-notebooks/03_epoch_selection.ipynb      epoch selection on validation data
-results/centralized.json          single run (seed 42): metrics, per-site table, loss history
-results/centralized_seeds.json    mean and std over eval_seeds, per-site means
-results/hospital_partition.csv    table of the simulated hospitals
-results/local_only_seeds.json     local-only baseline, mean and std over eval_seeds
-results/comparison.json           paired bootstrap comparisons (python -m src.compare)
-results/figures/           plots used in the report
-results/docker/            Docker deployment results, isolation evidence, logs
-results/checkpoints/       model checkpoints (gitignored)
-DATA_CARD.md               data card
-```
-
-## Data pipeline
-
-1. **Cleaning.** Drop `weight` (97% missing) and `payer_code` (40% missing). Drop encounters ending in death or hospice (they cannot be readmitted). Group ICD-9 diagnosis codes into broad categories. Keep the 10 most common `medical_specialty` values and group the rest as "Other".
-2. **Global test set.** 20% of *patients* (grouped by `patient_nbr`) are held out first, so no patient appears in both train and test.
-3. **Encoding.** One-hot encoding and standard scaling, **fitted on the training pool only**. Result: 182 features.
-4. **Hospital simulation.** Whole patients are assigned to hospitals. Patients are grouped by age band and readmission label, and a Dirichlet draw (`dirichlet_alpha: 1.0`) decides each group's share per hospital. This creates feature skew (age mix), label skew (readmission rate) and quantity skew (hospital size). A draw is rejected if a hospital has under 5% or over 45% of the data, under 200 positives, or a positive rate outside 4% to 25%.
-5. **Validation sets.** Each hospital holds out 10% of its own patients, so validation matches its own distribution. Validation data is never used for training.
-
-### Simulated hospitals
-
-| Hospital | Rows | Train | Val | Positive rate | % age <50 | % age 50-69 | % age 70+ |
-|---|---|---|---|---|---|---|---|
-| 0 | 13,586 | 12,320 | 1,266 | 22.4% | 5.7% | 54.6% | 39.8% |
-| 1 | 23,965 | 21,571 | 2,394 | 6.8% | 14.7% | 31.6% | 53.7% |
-| 2 | 10,273 | 9,162 | 1,111 | 24.8% | 14.9% | 45.3% | 39.8% |
-| 3 | 9,026 | 8,173 | 853 | 8.4% | 13.0% | 75.7% | 11.3% |
-| 4 | 22,717 | 20,496 | 2,221 | 4.8% | 25.0% | 21.2% | 53.8% |
-
-Also saved in `results/hospital_partition.csv`. The test set and the hospitals are fixed by `seed: 42`. Never change `seed`, `dirichlet_alpha` or the hospital settings after this point without re-running the baseline and telling the whole team, because every comparison depends on identical data.
-
-## Model
-
-One PyTorch MLP, used by **both** centralized and federated training: 182 → 64 → 32 → 1 (ReLU, dropout 0.2), 13,825 parameters. Loss is `BCEWithLogitsLoss` with `pos_weight` (negatives / positives) to handle class imbalance. Adam, learning rate 0.001, batch size 64. All values come from `configs/config.yaml`.
-
-**Training budget.** The model overfits: training loss keeps falling, but ROC-AUC on held-out data peaks early. The epoch count (8) was therefore chosen on the **pooled validation sets of the five hospitals**, not on the test set (`notebooks/03_epoch_selection.ipynb`). Validation ROC-AUC by epochs: 3 → 0.666, 5 → 0.670, 8 → 0.672, 10 → 0.665, 15 → 0.659, 20 → 0.649, 30 → 0.635. The federated run uses the matching budget of **8 rounds with 1 local epoch each**.
-
-## Shared interface (for the Flower side)
-
-```python
-from src.data_loader import load_config, load_hospital_data, load_global_test, get_input_dim
-from src.model import build_model, get_weights, set_weights, train, predict_proba
-from src.metrics import evaluate, evaluate_per_site, fairness_gaps, compute_metrics
-```
-
-| Function | Returns / does |
-|---|---|
-| `load_config()` | Dict from `configs/config.yaml`. |
-| `load_hospital_data(i)` | `(X_train, y_train, X_val, y_val)` numpy arrays for hospital `i` (0 to 4). Each Flower client loads only its own. |
-| `load_global_test()` | `(X_test, y_test)`. Both approaches are scored on this. |
-| `get_input_dim()` | 182. |
-| `build_model(input_dim, cfg)` | Fresh MLP. |
-| `get_weights(model)` | List of 6 numpy arrays in a fixed order, the format Flower sends. |
-| `set_weights(model, weights)` | Loads that list back into a model (exact round trip, tested). |
-| `train(model, X, y, epochs, lr, batch_size, cfg, seed)` | Trains in place, returns the model. Per-epoch loss in `model.loss_history`. Builds a fresh Adam optimizer on every call. |
-| `predict_proba(model, X)` | Positive-class probabilities. |
-| `evaluate(model, X, y)` | Dict: accuracy, precision, recall, f1, roc_auc, n, n_pos. |
-| `evaluate_per_site(model, range(5), with_ci=True)` | Same metrics on each hospital's validation set (plus a 95% bootstrap interval for ROC-AUC). |
-| `fairness_gaps(per_site)` | Max minus min of each metric across hospitals. |
-| `compute_metrics(y_true, y_prob)` | Metrics from labels and probabilities (use it if you aggregate predictions yourself). |
-
-Do not edit these files without telling <Name 1>. If you need a change (for example a different return format), ask for it, so the centralized baseline stays comparable.
-
-## Config ownership
-
-`configs/config.yaml` is shared.
-
-- <Name 1> edits everything except `federated:` and `eval_seeds`.
-- <Name 2> edits **only** the `federated:` section. Set `num_rounds: 8` and `local_epochs: 1` (the file currently says 20, which must be changed to match the centralized budget).
-- `eval_seeds: [42, 43, 44, 45, 46]` is shared and fixed. Both sides use it for multi-seed runs.
-- If a shared value must change (learning rate, batch size, hospital settings), agree on it first, because it changes the baseline too.
-
-## Part 1 results (centralized baseline)
-
-Trained on the union of the five hospitals' training splits (71,722 rows) for 8 epochs. Mean ± std over 5 seeds (`results/centralized_seeds.json`). The single run in `results/centralized.json` is seed 42 (ROC-AUC 0.6781).
-
-| Metric (global test set, 19,773 rows) | Mean ± std |
-|---|---|
-| Accuracy | 0.6268 ± 0.0338 |
-| Precision | 0.1767 ± 0.0070 |
-| Recall | 0.6217 ± 0.0475 |
-| F1 | 0.2746 ± 0.0032 |
-| ROC-AUC | **0.6778 ± 0.0008** |
-| Training time | 19.4 ± 1.3 s (CPU, training only) |
-
-**Per-site results** (each hospital's validation set, mean ± std over seeds):
-
-| Hospital | ROC-AUC | Recall |
-|---|---|---|
-| 0 | 0.619 ± 0.007 | 0.591 ± 0.060 |
-| 1 | 0.698 ± 0.006 | 0.668 ± 0.054 |
-| 2 | 0.625 ± 0.004 | 0.654 ± 0.038 |
-| 3 | 0.623 ± 0.019 | 0.525 ± 0.045 |
-| 4 | 0.665 ± 0.009 | 0.600 ± 0.043 |
-
-Per-site ROC-AUC gap (max minus min): **0.083 ± 0.009**. Precision and F1 gaps are large (about 0.25 and 0.31) mainly because the hospitals' base rates differ.
-
-**How to read this.** ROC-AUC is very stable across seeds (std 0.0008), so even a small federated difference is detectable. Recall and accuracy depend on the fixed 0.5 threshold and move by ±0.03 to 0.05 between seeds, so single runs of those cannot be compared. Per-site numbers are noisier than the global ones, especially hospital 3 (56 positive validation cases).
-
-## To do: Part 2 (Flower), <Name 2>
-
-Work on branch `feature/flower-fl`, in `src/federated/` and the `federated:` section of the config.
-
-### First hour checklist
-
-1. `git checkout main`, `git pull`, `git checkout -b feature/flower-fl`.
-2. Follow the Setup section. Create the venv, `pip install -r requirements.txt` (takes several minutes; Ray comes with `flwr[simulation]`).
-3. Put the two CSVs in `data/raw/`, then run `python -m src.prepare` and `python -m src.centralized`. Check the numbers listed under "Check your setup".
-4. Open `notebooks/02_centralized_results.ipynb` to see the target numbers you will be compared against.
-5. Set `federated.num_rounds: 8` and `local_epochs: 1` in the config.
-6. Report any setup problem to <Name 1> right away.
-
-### What to build
-
-1. **Flower server and five clients** (simulation is fine; Flower's simulation runtime is the default for `flwr run`). Client `i` loads its data with `load_hospital_data(i)`. Flower's recommended structure is a `ServerApp` and a `ClientApp` run with `flwr run`. The API has changed between Flower versions, so follow the documentation for the installed version (`flwr==1.42.0`), for example `flwr new @flwrlabs/quickstart-pytorch`, and not older tutorials. Keep the Flower app files in `src/federated/`. The app must be able to `import src...`: run from the project root, and if the imports fail, install the project in editable mode or add the root to the path.
-2. **Local training** in each client with the shared `train()`, `get_weights()` and `set_weights()`. Pass a different seed each round and client (for example `seed + round * 10 + client_id`), otherwise every round shuffles the data identically.
-3. **FedAvg aggregation**, weighted by number of training samples, for `num_rounds` rounds, with all five clients taking part every round (`fraction_fit: 1.0`, `min_available_clients: 5`).
-4. **Same initial model as the centralized run.** Call `torch.manual_seed(seed)` before `build_model`, with the run's seed, so both methods start from identical weights.
-5. **After every round**, evaluate the global model with `evaluate(...)` on `load_global_test()` and with `evaluate_per_site(...)`. Log round, metrics and elapsed time.
-6. **Communication cost.** Measure the bytes of model weights sent per round (up and down, all clients). Sanity check: the model has 13,825 float32 parameters, about 55 KB per transfer, so about 0.55 MB per round for 5 clients (10 transfers), and about 4.4 MB over 8 rounds. Your measured value should be close to this, or you can explain the difference (for example serialization overhead).
-7. **Total training time**, from the start of the first round to the end of the last. This includes Flower's simulation overhead, so also record the sum of the clients' local training time, so the report can separate computation from overhead. Run on the same machine as the centralized baseline.
-8. **Checkpoints and logs.** Save the global model after each round (or at least the last) to `results/checkpoints/` (gitignored) and a per-round log (round, global-test metrics, time, bytes) to `results/`.
-9. **Results files.**
-   - `results/federated.json`: one run (seed 42), same keys as `results/centralized.json` (`global_test`, `per_site_val`, `fairness_gaps`, `train_seconds`, `n_train`, ...) plus `rounds`, `bytes_per_round`, `total_bytes` and a per-round history. Use `rounds` where the centralized file has `epochs`.
-   - `results/federated_seeds.json`: run the whole federated experiment once per seed in `eval_seeds` and store mean and std in the same structure as `results/centralized_seeds.json`. If five runs take too long, use three seeds and say so in the report.
-10. **Tuning.** Choose any extra settings (rounds beyond 8, learning rate) on validation data, never on the test set. The main comparison uses the matched budget of 8 rounds. If you also run a longer experiment, report it separately.
-
-### Rules for a fair comparison
-
-- Same model, seed, hyperparameters and data (shared config).
-- Comparable effort: centralized uses 8 epochs, federated uses 8 rounds of 1 local epoch each.
-- Run federated and centralized on the **same machine**, with nothing heavy running, or the timing comparison is unfair.
-- Class weights: centralized computes `pos_weight` from the combined data, each federated client from its own data. This is a natural consequence of federated training. Mention it in the report.
-- The optimizer is rebuilt in every local training call, so Adam's state is not carried across rounds. This is standard for FedAvg; mention it.
-- Compare **means over seeds**, not single runs. ROC-AUC is the headline metric. Recall and accuracy vary by ±0.03 to 0.05 across seeds, so only treat differences larger than that as real.
-- Per-site: report ROC-AUC and recall as the main fairness metrics. Precision and F1 depend on each hospital's base rate. Per-site validation sets are small (hospital 3 has about 56 positives), so differences smaller than the seed spread or the bootstrap intervals should not be called significant.
-- Per-site validation numbers and the global test number are measured on different data, so a difference between them is not a fairness gap.
-
-### Done means
-
-- `python -m src.federated.<your entry point>` or `flwr run` reproduces a run from a fresh clone, and the exact commands are written in this README.
-- `results/federated.json` and `results/federated_seeds.json` exist and load next to the centralized files.
-- The README's "Part 2 results" section is filled in.
-
-## Docker deployment: one container per hospital
-
-The same Flower app also runs as **separate containers** instead of in one process: one server container and five hospital containers, using Flower's Deployment Engine (SuperLink and SuperNodes, Flower 1.42). Model, hyperparameters, seeds, metrics and FedAvg code are unchanged; only how the processes are started differs.
+### Federated deployment (Docker)
 
 ```mermaid
 flowchart LR
@@ -260,19 +55,87 @@ flowchart LR
     SL <-->|"model weights + metrics only"| N4
 ```
 
-- **Only weights travel.** Each round the server sends the global model to every hospital, each hospital trains on its own data and sends back updated weights and metric numbers. Patient rows never leave a container.
-- **Data isolation** (in `docker-compose.yml`): each hospital container mounts only its own `hospital_<i>.npz` plus `meta.json` (feature count and names, no patient rows), read-only. The server mounts no hospital data, only the global test set it uses to score the shared model. Each hospital is on its own private network that only the server joins, so hospitals cannot reach each other. `docker/run_experiment.py` verifies all of this on the running containers and saves the evidence to `results/docker/isolation_check.json`.
-- The Flower base images are extended with the project's dependencies (`docker/Dockerfile`). The Ubuntu variant is used because the default Alpine images cannot install PyTorch, and PyTorch comes from the CPU-only wheel index. The app code is sent by `flwr run`; data and config are mounted, never copied into an image (`.dockerignore` excludes `data/`).
+Each round, the server sends the global model to every hospital. Each hospital trains one epoch on its own data and sends back updated weights and metric values. The server averages the weights (FedAvg) and scores the new model on the global test set. Details are in [Federated deployment](#federated-deployment-docker-1).
 
-### Setup
+### Data and evaluation pipeline
 
-1. Docker Desktop running (tested on Apple Silicon, Docker 29, 8 CPUs). Docker's default memory (about 4 GB) is just enough if no other containers are running (Settings > Resources; 6 GB or more gives headroom). Each hospital container is limited to 1 CPU, the server to 2.
-2. The processed data must exist: `python -m src.prepare` (see "Reproduce Part 1").
-3. The project venv provides the `flwr` command: `source .venv/bin/activate` (macOS) or `.venv\Scripts\Activate.ps1` (Windows).
+```mermaid
+flowchart LR
+    raw[data/raw/diabetic_data.csv] --> prep[data_loader.py<br/>clean, split by patient, encode]
+    prep --> pool[(pool.npz)]
+    prep --> test[(global_test.npz)]
+    pool --> part[partition.py<br/>5 non-IID hospitals]
+    part --> h[(hospital_0..4.npz)]
+    h --> cen[centralized.py / multiseed.py<br/>union of train splits]
+    h --> loc[local_only.py<br/>one model per hospital]
+    h --> fed[Flower federated training<br/>Docker or simulation]
+    test --> fed
+    cen --> res[results/*.json<br/>checkpoints]
+    loc --> res
+    fed --> res
+    res --> cmp[compare.py<br/>paired bootstrap]
+    test --> cmp
+    cmp --> nb[notebooks/04<br/>tables and figures]
+```
 
-### Run
+> **Simulation mode.** The same ServerApp and ClientApps also run in a single process with Flower's simulation runtime (`python -m src.federated.run`). It needs no Docker. It is used for the paired statistical comparison, and it matches the Docker results to within 0.0006 ROC-AUC per seed. See [Simulation mode](#simulation-mode-no-docker).
 
-One command does everything (start the containers, check isolation, run, measure, save to `results/docker/`):
+
+## Dataset
+
+[Diabetes 130-US Hospitals for Years 1999-2008](https://archive.ics.uci.edu/dataset/296/diabetes-130-us-hospitals-for-years-1999-2008) (UCI), licensed CC BY 4.0. Source: Strack et al., 2014. Task: predict readmission within 30 days (`readmitted == "<30"` is 1, otherwise 0). About 11% of encounters are positive. Details are in [`DATA_CARD.md`](DATA_CARD.md).
+
+The dataset has **no hospital ID column**, so the five hospitals are *simulated* (see `src/partition.py`).
+
+## Setup
+
+Use **Python 3.12** (all team members must use the same minor version). Tested on Windows 11 and macOS (Apple Silicon).
+
+**Windows (PowerShell):**
+
+```
+git clone https://github.com/sunidhishekar-create/federated-learning-on-hospital-data-.git
+cd federated-learning-on-hospital-data-
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+If PowerShell blocks activation, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once.
+
+**macOS / Linux:**
+
+```
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+In VS Code select the interpreter with `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) > Python: Select Interpreter > `.venv`.
+
+Download the dataset from the link above and put `diabetic_data.csv` and `IDS_mapping.csv` into `data/raw/` (gitignored).
+
+**For the federated deployment** you also need Docker Desktop:
+
+- Tested on Apple Silicon with Docker 29 and 8 CPUs.
+- Docker's default memory (about 4 GB) is just enough if no other containers are running (Settings > Resources). 6 GB or more gives headroom.
+- The `flwr` command comes from the venv above.
+
+## Reproduce
+
+### 1. Data and centralized baseline
+
+```
+python -m src.prepare        # clean, split, encode, build 5 hospitals (~10 s)
+python -m src.centralized    # single baseline run (seed 42, ~25 s) -> results/centralized.json
+python -m src.multiseed      # 5-seed baseline (~2 min) -> results/centralized_seeds.json
+```
+
+Everything is seeded (`seed` and `eval_seeds` in `configs/config.yaml`), so results reproduce exactly. A fresh clone gave identical data and partitions.
+
+**Check your setup:** after `src.prepare` and `src.centralized`, the output must show **ROC-AUC 0.6781** on the global test set and a partition table with hospital sizes 13,586 / 23,965 / 10,273 / 9,026 / 22,717. If not, stop and tell Sunidhi Shekar before building anything on top.
+
+### 2. Federated training (Docker deployment)
 
 ```
 python docker/run_experiment.py --seeds 42          # one seed, about 5 min including startup
@@ -280,7 +143,219 @@ python docker/run_experiment.py                     # all eval_seeds, about 20 m
 python docker/run_experiment.py --down              # same, then stop and remove the containers
 ```
 
-Or step by step:
+One command builds and starts the six containers, verifies data isolation, runs FedAvg, measures traffic and memory, and saves everything to `results/docker/`. Step-by-step commands are in [Federated deployment](#federated-deployment-docker-1).
+
+### 3. Local-only baseline and statistical comparison
+
+```
+python -m src.federated.run              # simulation runs, all eval_seeds (~5 min) -> results/federated_seeds.json
+python -m src.local_only                 # local-only baseline (~40 s) -> results/local_only_seeds.json
+python -m src.compare                    # paired bootstrap comparisons -> results/comparison.json
+```
+
+- `src.compare` needs per-patient predictions from every model. It therefore loads the simulation's per-round checkpoints and the local-only checkpoints, and retrains the centralized model per seed.
+- Before comparing anything, it checks that every recomputed ROC-AUC matches the recorded value (to about 3e-8).
+- Then open `notebooks/04_federated_vs_centralized.ipynb` and run all cells. It only reads from `results/`.
+
+**Same-machine baseline.** Timing comparisons are only fair on one machine, so the comparison uses a centralized 5-seed run made on the same Mac as the federated runs, stored as `results/centralized_seeds_mac.json`. The Windows file stays untouched. To recreate the Mac file:
+
+1. Run `python -m src.multiseed`.
+2. Copy `results/centralized_seeds.json` to `results/centralized_seeds_mac.json`.
+3. Restore the original with `git checkout results/centralized_seeds.json results/centralized.json`.
+
+The two baselines agree on ROC-AUC (0.6777 vs 0.6778).
+
+## Project structure
+
+```
+.
+├── configs/
+│   └── config.yaml                  shared settings (see Config ownership)
+├── data/
+│   ├── raw/                         downloaded CSVs (gitignored)
+│   └── processed/                   generated .npz files (gitignored)
+│
+├── src/
+│   ├── data_loader.py               cleaning, patient split, encoding, loading
+│   ├── partition.py                 builds the 5 non-IID hospitals
+│   ├── prepare.py                   one command: split + partition
+│   ├── model.py                     MLP, get/set weights, training loop
+│   ├── metrics.py                   metrics, per-site evaluation, fairness gaps
+│   ├── centralized.py               centralized baseline, one run
+│   ├── multiseed.py                 centralized baseline over eval_seeds
+│   ├── local_only.py                local-only baseline, one model per hospital
+│   ├── compare.py                   paired bootstrap, age-adjusted ROC-AUC
+│   └── federated/
+│       ├── server_app.py            ServerApp: FedAvg, global evaluation, logs, checkpoints
+│       ├── client_app.py            ClientApp: local training and evaluation on one hospital
+│       ├── client_metrics.py        NumPy-only metrics for the ClientApp
+│       └── run.py                   simulation entry point, one run per seed
+│
+├── docker-compose.yml               1 server + 5 hospital containers, per-hospital mounts and networks
+├── docker/
+│   ├── Dockerfile                   Flower SuperLink / SuperNode images + project dependencies
+│   ├── requirements.txt             container dependencies (CPU PyTorch installed separately)
+│   ├── run_experiment.py            start stack, check isolation, run seeds, measure, save
+│   ├── measure_memory.py            per-stage memory profile of one ClientApp process
+│   ├── check_client_metrics.py      verifies client_metrics.py == metrics.py
+│   └── flwr_home/config.toml        Flower CLI connection to the containers
+├── pyproject.toml                   Flower app definition (ServerApp, ClientApp, run config)
+│
+├── notebooks/
+│   ├── 01_explore.ipynb                     data exploration
+│   ├── 02_centralized_results.ipynb         centralized results, per-site analysis
+│   ├── 03_epoch_selection.ipynb             epoch selection on validation data
+│   └── 04_federated_vs_centralized.ipynb    federated vs centralized vs local-only, fairness, Docker
+│
+├── results/
+│   ├── docker/                      deployment results, isolation evidence, memory, logs
+│   ├── federated.json               federated run, seed 42 (simulation)
+│   ├── federated_seeds.json         federated, mean and std over eval_seeds (simulation)
+│   ├── federated_runs/              per-seed federated logs with per-round history
+│   ├── centralized.json             centralized run, seed 42
+│   ├── centralized_seeds.json       centralized, mean and std over eval_seeds (Windows)
+│   ├── centralized_seeds_mac.json   same, on the Mac used for the federated runs
+│   ├── local_only_seeds.json        local-only baseline over eval_seeds
+│   ├── comparison.json              paired bootstrap comparisons
+│   ├── hospital_partition.csv       table of the simulated hospitals
+│   ├── figures/                     plots used in the report
+│   └── checkpoints/                 model checkpoints (gitignored)
+│
+├── DATA_CARD.md
+└── MODEL_CARD.md
+```
+
+## Data pipeline
+
+1. **Cleaning.** Drop `weight` (97% missing) and `payer_code` (40% missing). Drop encounters ending in death or hospice (they cannot be readmitted). Group ICD-9 diagnosis codes into broad categories. Keep the 10 most common `medical_specialty` values and group the rest as "Other".
+2. **Global test set.** 20% of *patients* (grouped by `patient_nbr`) are held out first, so no patient appears in both train and test.
+3. **Encoding.** One-hot encoding and standard scaling, **fitted on the training pool only**. Result: 182 features.
+4. **Hospital simulation.** Whole patients are assigned to hospitals. Patients are grouped by age band and readmission label, and a Dirichlet draw (`dirichlet_alpha: 1.0`) decides each group's share per hospital. This creates three kinds of skew:
+   - feature skew (age mix);
+   - label skew (readmission rate);
+   - quantity skew (hospital size).
+
+   A draw is rejected if a hospital has under 5% or over 45% of the data, under 200 positives, or a positive rate outside 4% to 25%.
+5. **Validation sets.** Each hospital holds out 10% of its own patients, so validation matches its own distribution. Validation data is never used for training.
+
+### Simulated hospitals
+
+| Hospital | Rows | Train | Val | Positive rate | % age <50 | % age 50-69 | % age 70+ |
+|---|---|---|---|---|---|---|---|
+| 0 | 13,586 | 12,320 | 1,266 | 22.4% | 5.7% | 54.6% | 39.8% |
+| 1 | 23,965 | 21,571 | 2,394 | 6.8% | 14.7% | 31.6% | 53.7% |
+| 2 | 10,273 | 9,162 | 1,111 | 24.8% | 14.9% | 45.3% | 39.8% |
+| 3 | 9,026 | 8,173 | 853 | 8.4% | 13.0% | 75.7% | 11.3% |
+| 4 | 22,717 | 20,496 | 2,221 | 4.8% | 25.0% | 21.2% | 53.8% |
+
+Also saved in `results/hospital_partition.csv`. The test set and the hospitals are fixed by `seed: 42`. Never change `seed`, `dirichlet_alpha` or the hospital settings without re-running the baseline and telling the whole team, because every comparison depends on identical data.
+
+**Known side effect.** Because age band and label are assigned to hospitals separately, age can become a hospital-specific stand-in for the label. Hospital 3 is the extreme case: 0.7% of its 50-69 year olds are readmitted, against 39.5% of its under-50s and 24.1% of its over-70s. In the full dataset, the 50-69 group is readmitted at about the average rate. The per-site analysis corrects for this with an age-adjusted ROC-AUC (see [Part 2 results](#part-2-results-federated-vs-centralized-vs-local-only)).
+
+## Model
+
+One PyTorch MLP, used by **all** training modes (centralized, federated, local-only): 182 → 64 → 32 → 1 (ReLU, dropout 0.2), 13,825 parameters. Loss is `BCEWithLogitsLoss` with `pos_weight` (negatives / positives) to handle class imbalance. Adam, learning rate 0.001, batch size 64. All values come from `configs/config.yaml`.
+
+**Training budget.** The model overfits: training loss keeps falling, but ROC-AUC on held-out data peaks early. The epoch count (8) was therefore chosen on the **pooled validation sets of the five hospitals**, not on the test set (`notebooks/03_epoch_selection.ipynb`).
+
+| Epochs | 3 | 5 | **8** | 10 | 15 | 20 | 30 |
+|---|---|---|---|---|---|---|---|
+| Validation ROC-AUC | 0.666 | 0.670 | **0.672** | 0.665 | 0.659 | 0.649 | 0.635 |
+
+Federated training uses the matching budget of **8 rounds with 1 local epoch each**. Local-only training uses 8 epochs on each hospital's own data.
+
+## Shared interface
+
+```python
+from src.data_loader import load_config, load_hospital_data, load_global_test, get_input_dim
+from src.model import build_model, get_weights, set_weights, train, predict_proba
+from src.metrics import evaluate, evaluate_per_site, fairness_gaps, compute_metrics
+```
+
+| Function | Returns / does |
+|---|---|
+| `load_config()` | Dict from `configs/config.yaml`. |
+| `load_hospital_data(i)` | `(X_train, y_train, X_val, y_val)` numpy arrays for hospital `i` (0 to 4). Each Flower client loads only its own. |
+| `load_global_test()` | `(X_test, y_test)`. All approaches are scored on this. |
+| `get_input_dim()` | 182. |
+| `build_model(input_dim, cfg)` | Fresh MLP. |
+| `get_weights(model)` | List of 6 numpy arrays in a fixed order, the format Flower sends. |
+| `set_weights(model, weights)` | Loads that list back into a model (exact round trip, tested). |
+| `train(model, X, y, epochs, lr, batch_size, cfg, seed)` | Trains in place, returns the model. Per-epoch loss in `model.loss_history`. Builds a fresh Adam optimizer on every call. |
+| `predict_proba(model, X)` | Positive-class probabilities. |
+| `evaluate(model, X, y)` | Dict: accuracy, precision, recall, f1, roc_auc, n, n_pos. |
+| `evaluate_per_site(model, range(5), with_ci=True)` | Same metrics on each hospital's validation set (plus a 95% bootstrap interval for ROC-AUC). |
+| `fairness_gaps(per_site)` | Max minus min of each metric across hospitals. |
+| `compute_metrics(y_true, y_prob)` | Metrics from labels and probabilities (use it if you aggregate predictions yourself). |
+
+Do not edit these files without telling Sunidhi Shekar. If you need a change (for example a different return format), ask for it, so the centralized baseline stays comparable.
+
+**Changes made for the Docker deployment** (outputs are unchanged): `src/data_loader.py` reads the project root from the `FL_ROOT` environment variable when it is set, so containers can mount data under `/app`. It also imports pandas, scikit-learn and joblib only inside the preprocessing functions, so a hospital container that only loads its `.npz` file does not pay for them in memory. Preprocessing re-run after the change gave byte-identical `.npz` files.
+
+
+## Part 1 results (centralized baseline)
+
+Trained on the union of the five hospitals' training splits (71,722 rows) for 8 epochs. Mean ± std over 5 seeds (`results/centralized_seeds.json`, Windows). The single run in `results/centralized.json` is seed 42 (ROC-AUC 0.6781).
+
+| Metric (global test set, 19,773 rows) | Mean ± std |
+|---|---|
+| Accuracy | 0.6268 ± 0.0338 |
+| Precision | 0.1767 ± 0.0070 |
+| Recall | 0.6217 ± 0.0475 |
+| F1 | 0.2746 ± 0.0032 |
+| ROC-AUC | **0.6778 ± 0.0008** |
+| Training time | 19.4 ± 1.3 s (CPU, training only) |
+
+**Per-site results** (each hospital's validation set, mean ± std over seeds):
+
+| Hospital | ROC-AUC | Recall |
+|---|---|---|
+| 0 | 0.619 ± 0.007 | 0.591 ± 0.060 |
+| 1 | 0.698 ± 0.006 | 0.668 ± 0.054 |
+| 2 | 0.625 ± 0.004 | 0.654 ± 0.038 |
+| 3 | 0.623 ± 0.019 | 0.525 ± 0.045 |
+| 4 | 0.665 ± 0.009 | 0.600 ± 0.043 |
+
+- **Per-site gap.** The ROC-AUC gap (max minus min) is **0.083 ± 0.009**. Precision and F1 gaps are large (about 0.25 and 0.31) mainly because the hospitals' base rates differ.
+- **How to read this.** ROC-AUC is very stable across seeds (std 0.0008), so even a small federated difference is detectable. Recall and accuracy depend on the fixed 0.5 threshold and move by ±0.03 to 0.05 between seeds, so single runs of those cannot be compared.
+- **Hospital 3.** Per-site numbers are noisier than the global ones, especially hospital 3, which has 56 positive validation cases.
+
+## Part 2: federated training (Flower)
+
+Built with Flower 1.42.0's Message API (`ServerApp` and `ClientApp` in `src/federated/`, declared in `pyproject.toml`). Model, data, hyperparameters, metrics and seeds are those of Part 1; only the training procedure changes.
+
+| Requirement | Implementation |
+|---|---|
+| Server and five clients | The server container runs the SuperLink and the `ServerApp`. Hospital container `i` runs a SuperNode and the `ClientApp`, which loads only `load_hospital_data(i)` from its own read-only mount. |
+| Local training | Shared `train()`, `get_weights()` and `set_weights()`, 1 local epoch per round. The seed is `seed + round * 10 + hospital`, so every round and client shuffles differently. |
+| Aggregation | FedAvg weighted by number of training rows. All five clients train and evaluate every round (`fraction_fit: 1.0`, `min_available_clients: 5`). |
+| Same start as centralized | `torch.manual_seed(seed)` before `build_model` on the server, so all approaches start from identical weights. |
+| Evaluation every round | The server scores the global model on the global test set. Each client scores it on its own validation set (with a 95% bootstrap interval) and returns only the numbers. |
+| Communication cost | Model size from Flower's `ArrayRecord.count_bytes()` (56,110 bytes). Per round: 5 downloads + 5 uploads for training (0.56 MB), plus 5 downloads for client evaluation. In Docker, the server's real network bytes are also measured from `/proc/net/dev`. |
+| Training time | First round start to last round end, excluding evaluation time. The sum of the clients' local training seconds is recorded too, so computation and framework overhead can be separated. |
+| Checkpoints and logs | Global model after every round (`federated_seed<S>_round<R>.pt`). Per-round history (global metrics, per-site metrics, seconds, bytes) in `federated_runs/seed_<S>.json`. Docker writes under `results/docker/`, the simulation under `results/`. |
+| Results files | `federated.json` (seed 42) uses the same keys as `centralized.json`, plus `rounds`, `bytes_per_round`, `total_bytes` and `history`. `federated_seeds.json` uses the layout of `centralized_seeds.json`. |
+| Tuning | None. The main comparison uses the matched budget of 8 rounds × 1 local epoch; nothing was tuned on the test set. |
+
+## Federated deployment (Docker)
+
+The federated system runs as **separate containers** using Flower's Deployment Engine (SuperLink and SuperNodes, Flower 1.42): one server container and five hospital containers. The architecture diagram is under [Architecture](#architecture).
+
+- **Only weights travel.** Patient rows never leave a hospital container. The server receives only model weights and metric values.
+- **Data isolation** (in `docker-compose.yml`):
+  - Each hospital container mounts only its own `hospital_<i>.npz` plus `meta.json`, read-only. `meta.json` holds the feature count and names, no patient rows.
+  - The server mounts no hospital data, only the global test set it uses to score the shared model.
+  - Each hospital is on its own private network that only the server joins, so hospitals cannot reach each other.
+  - `docker/run_experiment.py` verifies all of this on the running containers and saves the evidence to `results/docker/isolation_check.json`. All five checks pass.
+- **Images.** The Flower base images are extended with the project's dependencies (`docker/Dockerfile`).
+  - The Ubuntu variant is used because the default Alpine images cannot install PyTorch.
+  - PyTorch comes from the CPU-only wheel index.
+  - The app code is sent by `flwr run`. Data and config are mounted, never copied into an image (`.dockerignore` excludes `data/`).
+- **Resources.** Each hospital container is limited to 1 CPU, the server to 2.
+
+### Run
+
+The one-command runner is described under [Reproduce](#2-federated-training-docker-deployment). Step by step:
 
 ```
 docker compose up -d --build                                       # server + 5 hospitals
@@ -288,7 +363,9 @@ docker compose logs superlink | grep "Activated node"              # wait for 5 
 FLWR_HOME=docker/flwr_home flwr run . docker-deployment --run-config "seed=42" --stream
 ```
 
-`FLWR_HOME=docker/flwr_home` points the Flower CLI at the containers (`docker/flwr_home/config.toml`, SuperLink on `127.0.0.1:9810`) without touching your own `~/.flwr`. Results go to `results/docker/federated_runs/seed_<seed>.json`. Port 9810 is used because 8000 is often taken; change it in both `docker-compose.yml` and `docker/flwr_home/config.toml` if needed.
+- `FLWR_HOME=docker/flwr_home` points the Flower CLI at the containers (`docker/flwr_home/config.toml`, SuperLink on `127.0.0.1:9810`) without touching your own `~/.flwr`.
+- Results go to `results/docker/federated_runs/seed_<seed>.json`.
+- Port 9810 is used because 8000 is often taken. Change it in both `docker-compose.yml` and `docker/flwr_home/config.toml` if needed.
 
 ### Stop and clean up
 
@@ -301,50 +378,141 @@ docker builder prune                                 # optional: build cache
 
 No named volumes are created. Results stay in `results/docker/`; model checkpoints there are gitignored (`*.pt`).
 
-### Results: Docker vs simulation
+### Deployment results
 
-Five seeds (42 to 46), 8 rounds, same machine (MacBook, Docker VM with 8 CPUs and 3.8 GiB). Details and plots in `notebooks/04_federated_vs_centralized.ipynb`, section 7; raw files in `results/docker/`.
+Five seeds (42 to 46), 8 rounds, on a MacBook with a Docker VM of 8 CPUs and 3.8 GiB. Details and plots are in `notebooks/04_federated_vs_centralized.ipynb`, section 8.
 
-| | Simulation (one process) | Docker (6 containers) |
+| Metric (global test set) | Docker deployment |
+|---|---|
+| ROC-AUC | 0.6699 ± 0.0012 |
+| Recall | 0.639 ± 0.060 |
+| Precision | 0.172 ± 0.009 |
+| F1 | 0.270 ± 0.006 |
+| Accuracy | 0.607 ± 0.046 |
+| Per-hospital ROC-AUC gap | 0.089 ± 0.002 |
+| Communication, 8 rounds | 12.3 ± 0.1 MB measured at the server (6.7 MB is model weights) |
+| Training time, in-app | 116 ± 20 s |
+| End to end, incl. app delivery | 217 ± 42 s |
+
+- **Communication.** Real traffic is about 1.8x the weight volume. Round 1 also ships the app code to every hospital (~240 KB each). Every round adds HTTP overhead and the SuperNodes' polling and heartbeats (2.7 KB/s even when idle).
+- **Time.** Flower starts a fresh ClientApp process for every message, which imports PyTorch on one CPU before working, and each hospital trains with one thread. The run shows what a real deployment costs; it is not a speed benchmark.
+- **Memory.**
+  - The stack uses about 1.1 GB when idle. The containers' individual peaks add up to 3.7 GB; that is an upper bound, because the peaks are not simultaneous and include file cache.
+  - To fit Docker's default 3.8 GiB, the ClientApp avoids scikit-learn, SciPy and pandas. It uses a NumPy-only copy of the metrics (`src/federated/client_metrics.py`, verified identical by `docker/check_client_metrics.py`), which cuts each client process from 463 to 359 MB.
+  - Close other containers before running; with more Docker memory none of this matters.
+
+### Simulation mode (no Docker)
+
+`python -m src.federated.run` runs the same ServerApp and ClientApps in one process with Flower's simulation runtime. Use `--seeds 42` for a single run (~1 min) to `results/federated.json`; with no flag it runs all seeds (~5 min) to `results/federated_seeds.json`.
+
+It is used for the paired statistical comparison below. It matches the deployment closely:
+
+| | Simulation | Docker |
 |---|---|---|
 | Global ROC-AUC | 0.6696 ± 0.0012 | 0.6699 ± 0.0012 |
 | Per-hospital ROC-AUC gap | 0.090 ± 0.004 | 0.089 ± 0.002 |
-| Communication, 8 rounds | 6.7 MB (computed from model size) | 12.3 ± 0.1 MB (measured at the server) |
 | Training time, in-app | 34 ± 8 s | 116 ± 20 s |
-| End to end, incl. app delivery | not recorded | 217 ± 42 s |
 
-- **Same model quality.** Per seed the two differ by at most 0.0006 ROC-AUC; not bit-identical because the containers run Python 3.13 and Linux PyTorch with one thread per hospital.
-- **Real traffic is about 1.8x the estimate.** Round 1 also ships the app code to every hospital (~240 KB each), and every round adds HTTP overhead and the SuperNodes' polling and heartbeats (2.7 KB/s even when idle).
-- **Slower.** Flower starts a fresh ClientApp process for every message, which imports PyTorch on one CPU before working, and each hospital trains with one thread. This run shows the deployment works and what it costs; it is not a speed benchmark.
-- **Memory.** The stack uses about 1.1 GB when idle; the containers' individual peaks add up to 3.7 GB (an upper bound: the peaks are not simultaneous and include file cache). To fit Docker's default 3.8 GiB, the ClientApp avoids scikit-learn, SciPy and pandas: it uses a NumPy-only copy of the metrics (`src/federated/client_metrics.py`, verified identical by `docker/check_client_metrics.py`), which cuts each client process from 463 to 359 MB. Close other containers before running; with more Docker memory none of this matters.
+- **Agreement.** Per seed the two differ by at most 0.0006 ROC-AUC.
+- **Why not identical.** The containers run Python 3.13 and Linux PyTorch with one thread per hospital, so floating-point sums run in a different order.
 
-## Git workflow
+## Part 2 results: federated vs. centralized vs. local-only
 
-- `main` stays stable. <Name 1> works on `feature/centralized-baseline` (and later feature branches), <Name 2> on `feature/flower-fl`.
-- Commit small and often, with messages that describe the change. Open a pull request, and have your teammate review it before merging.
-- Before every commit, run `git status --short` and check that no CSV, `.npz`, `.pt` or `.venv` file is listed.
-- Checkpoints (`*.pt`, `results/checkpoints/`) are gitignored. If the final zip must contain them, build the zip from the project folder directly.
-- If your terminal mangles a long paste, run the commands one at a time.
+Five seeds (42 to 46), same Mac (Apple Silicon, CPU only). Federated numbers in this section come from the simulation runs, which supply per-patient predictions from the saved checkpoints. They match the Docker deployment to within 0.0006 ROC-AUC per seed. Full tables, figures and convergence plots are in `notebooks/04_federated_vs_centralized.ipynb`; all numbers are in `results/comparison.json` and the `*_seeds.json` files.
 
-## Shared deliverables
+### Comparison protocol
 
-| Deliverable | Who |
-|---|---|
-| Comparison notebook (centralized vs. federated, tables and per-site figure) | both; start from `02_centralized_results.ipynb` |
-| Model card (architecture, training, metrics, per-site fairness, limitations) | <Name 1> drafts, <Name 2> adds federated rows |
-| 3 to 5 page report | <Name 1>: data, hospitals, centralized, fairness method. <Name 2>: federated setup, communication, timing. Both: results and discussion |
-| 3-minute demo video (evaluated in class) | about 1 minute each plus 1 minute together on the comparison |
+- **Same inputs.** Same model, seeds, hyperparameters and data (shared config). Comparable effort: 8 epochs (centralized, local-only) vs. 8 rounds × 1 local epoch (federated).
+- **Same machine.** Federated and centralized timings come from the same machine (`centralized_seeds_mac.json`).
+- **Class weights.** Centralized training computes `pos_weight` from the combined data; each federated client and each local-only model computes it from its own data. This is inherent to federated training.
+- **Optimizer state.** The optimizer is rebuilt in every local training call, so Adam's state is not carried across rounds (standard for FedAvg).
+- **Paired bootstrap** (`src/compare.py`, 1,000 draws):
+  - Each draw resamples the rows of a validation set or the test set once and scores all models on those same rows.
+  - Differences are averaged over the 5 seeds inside each draw, so intervals cover both seed and sampling noise.
+  - p-values are two-sided. With 1,000 draws the smallest reportable value is p = 0.001.
+  - Per-hospital tests are judged against a Bonferroni threshold of 0.05 / 5 = 0.01.
+- **Headline metrics.** ROC-AUC is the headline metric. Per-site fairness uses ROC-AUC and recall, because precision and F1 mostly reflect each hospital's base rate.
+- **Age-adjusted ROC-AUC.** Only pairs of patients in the same age band (<50, 50-69, 70+) are compared, so a model cannot score by learning the simulation's age-to-label shortcut (see [Simulated hospitals](#simulated-hospitals)).
 
-## Deliverables checklist (Option A)
+### Global test set (19,773 rows)
 
-- [x] README with architecture diagram and setup steps (this file)
-- [ ] Reproducible pipeline (`prepare`, `centralized`, `multiseed` done; federated run to do)
-- [ ] Results notebook (centralized done; federated and comparison to add)
-- [ ] 3 to 5 page technical report (comparison report and per-site fairness analysis)
-- [x] Data card (`DATA_CARD.md`)
-- [ ] Model card
-- [ ] 3-minute demo video (evaluated in class)
+| Metric | Centralized | Federated | Federated − centralized [95% CI], p |
+|---|---|---|---|
+| ROC-AUC | 0.6777 ± 0.0023 | 0.6696 ± 0.0012 | **−0.0081** [−0.0132, −0.0030], p = 0.001 |
+| Recall | 0.623 ± 0.040 | 0.640 ± 0.056 | +0.018 [+0.007, +0.028], p = 0.002 |
+| Precision | 0.177 ± 0.006 | 0.171 ± 0.007 | |
+| F1 | 0.275 ± 0.003 | 0.269 ± 0.004 | |
+| Accuracy | 0.627 ± 0.028 | 0.605 ± 0.042 | |
+
+FedAvg ranks patients slightly worse than pooled training: a loss of about 1.2% of ROC-AUC, small but well outside seed noise. The higher recall comes from the threshold, because the averaged model predicts positive more often; it is not a better model.
+
+### Cost
+
+| | Centralized | Federated (simulation) | Federated (Docker) |
+|---|---|---|---|
+| Communication, 8 rounds | none | 4.49 MB training weights; 6.73 MB incl. evaluation broadcast | 12.3 ± 0.1 MB measured on the network |
+| Training time | 5.8 ± 0.5 s | 33.8 ± 8.4 s | 115.7 ± 20 s (216.8 ± 42 s end to end) |
+| Summed client compute | n/a | 35.9 ± 26.6 s | 146 s |
+
+- **Communication.** The weight volume equals the estimate in the brief: 56 KB per transfer × 10 transfers per round × 8 rounds. Patient data is never sent.
+- **Time.** Federated training is slower because of coordination overhead (rounds, serialization, scheduling, process start-up), not because of extra computation.
+
+### Per hospital (each hospital's own validation set, ROC-AUC, mean over seeds)
+
+| Hospital | Centralized | Federated | Local-only | Federated − centralized [95% CI], p |
+|---|---|---|---|---|
+| 0 | 0.616 | 0.600 | 0.610 | −0.016 [−0.034, +0.002], p = 0.078 |
+| 1 | 0.697 | 0.690 | 0.697 | −0.006 [−0.025, +0.009], p = 0.478 |
+| 2 | 0.627 | 0.602 | 0.635 | **−0.025** [−0.040, −0.010], p = 0.001 |
+| 3 | 0.619 | 0.644 | 0.889 (shortcut, see below) | +0.025 [−0.003, +0.056], p = 0.078 |
+| 4 | 0.665 | 0.655 | 0.650 | −0.010 [−0.029, +0.009], p = 0.338 |
+
+- **Hospital 2** is the only hospital measurably worse off under FedAvg than under pooling. It survives Bonferroni and the age adjustment: −0.026 [−0.043, −0.010], p = 0.001.
+- **Hospital 2 and the class weight.** Hospital 2 has the highest readmission rate (24.8%), so its local class weight differs most from the global one.
+- **Recall** differences between federated and centralized are not significant at any hospital.
+
+### Fairness across hospitals
+
+| | Centralized | Federated | Local-only |
+|---|---|---|---|
+| ROC-AUC gap (max − min) | 0.080 | 0.090 | 0.280 (shortcut-inflated) |
+| Worst hospital ROC-AUC | 0.616 (h0) | 0.600 (h0) | 0.610 (h0) |
+| Age-adjusted gap | 0.127 | 0.127 | 0.117 |
+| Age-adjusted worst hospital | 0.585 (h3) | 0.575 (h2) | 0.594 (h3) |
+
+- **No change in the gap.** Federated training neither widens nor narrows the per-hospital gap compared with centralized training: +0.010 [−0.049, +0.046], p = 0.75.
+- **Worst-off hospital.** It does not change significantly either: −0.016, p = 0.56.
+- **What drives the gap.** It reflects how hard each hospital's patients are to rank (once age is adjusted for, hospital 1 is the easiest in every model), not the training method.
+
+### Note: local-only baseline
+
+`python -m src.local_only` trains each hospital's model on its own data only, with the same 8-epoch budget. This is what a hospital gets if it does not join.
+
+- **On its own patients:** after age adjustment, no hospital is significantly better or worse off alone (all p ≥ 0.17).
+- **On patients from all hospitals:** the federated model beats every local model:
+
+| Local model trained on | Its global test ROC-AUC | Federated advantage [95% CI], p |
+|---|---|---|
+| Hospital 0 | 0.645 | +0.024 [+0.015, +0.034], p = 0.001 |
+| Hospital 1 (largest) | 0.665 | +0.005 [+0.000, +0.010], p = 0.046 |
+| Hospital 2 | 0.602 | +0.068 [+0.056, +0.080], p = 0.001 |
+| Hospital 3 | 0.556 | +0.113 [+0.099, +0.126], p = 0.001 |
+| Hospital 4 | 0.641 | +0.029 [+0.022, +0.037], p = 0.001 |
+
+**Hospital 3's local 0.889 is an artifact of the simulation, not a better model.**
+
+- Inside hospital 3, "aged 50-69" almost means "not readmitted". Predicting by age band alone scores about 0.89 there and about 0.50 on real patients.
+- Once only same-age patients are compared, the local model drops to 0.594, against 0.620 for the federated model (p = 0.62).
+
+
 
 ## Limitations
 
-Hospitals are simulated from one dataset, not real separate sites, and the skew is artificial. Readmission prediction on this dataset is hard (ROC-AUC around 0.62 to 0.68 is typical). Data are from US hospitals, 1999 to 2008. No differential privacy or secure aggregation is used.
+- **Simulated hospitals.** The hospitals are simulated from one dataset, not real separate sites, and the skew is artificial. The partitioning also creates hospital-specific age-to-label shortcuts, most strongly in hospital 3. Per-site results are therefore reported both raw and age-adjusted.
+- **Single-machine deployment.** The Docker deployment runs all six containers on one machine. Network latency and bandwidth between real hospitals are not modeled.
+- **Small validation sets.** Per-site sets are small (hospital 3 has 56 positive cases), so only large per-site differences can be detected.
+- **Hard task.** Readmission prediction on this dataset is hard (ROC-AUC around 0.62 to 0.68 is typical).
+- **Old data.** The data come from US hospitals, 1999 to 2008.
+- **Untuned hyperparameters.** Only the epoch count was chosen on validation data. The same 8-epoch budget is used for every approach, including local-only models, and was not tuned per hospital.
+- **One strategy.** Only FedAvg was tried. Strategies aimed at non-IID data (for example FedProx) or a shared class weight might reduce hospital 2's loss.
+- **No formal privacy guarantee.** No differential privacy or secure aggregation is used. Weights can still leak information about training data.
