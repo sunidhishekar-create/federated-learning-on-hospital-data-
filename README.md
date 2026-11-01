@@ -84,6 +84,8 @@ src/metrics.py             metrics, per-site evaluation, fairness gaps
 src/centralized.py         centralized baseline (one run)
 src/multiseed.py           centralized baseline over eval_seeds
 src/federated/             Flower code (Part 2)
+src/local_only.py          local-only baseline: each hospital trains on its own data only
+src/compare.py             paired bootstrap: federated vs centralized vs local-only, age-adjusted AUC
 docker-compose.yml         Docker deployment: 1 server + 5 hospital containers
 docker/                    Dockerfile, run_experiment.py, Flower CLI config for the containers
 notebooks/01_explore.ipynb              data exploration
@@ -92,6 +94,8 @@ notebooks/03_epoch_selection.ipynb      epoch selection on validation data
 results/centralized.json          single run (seed 42): metrics, per-site table, loss history
 results/centralized_seeds.json    mean and std over eval_seeds, per-site means
 results/hospital_partition.csv    table of the simulated hospitals
+results/local_only_seeds.json     local-only baseline, mean and std over eval_seeds
+results/comparison.json           paired bootstrap comparisons (python -m src.compare)
 results/figures/           plots used in the report
 results/docker/            Docker deployment results, isolation evidence, logs
 results/checkpoints/       model checkpoints (gitignored)
